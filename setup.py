@@ -17,7 +17,7 @@ setup(
     author='Emmanuel I. Obi',
     maintainer='Emmanuel I. Obi',
     maintainer_email='withtwoemms@gmail.com',
-    url='https://github.com/withtwoemms/actionpack',
+    url='https://github.com/withtwoemms/recruitment',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
