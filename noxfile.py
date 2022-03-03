@@ -74,11 +74,6 @@ def install(session):
         'pip', '--disable-pip-version-check', 'install', '.',
         external=external
     )
-    session.run(
-        'python', '-m',
-        'pip', '--disable-pip-version-check', 'install', '-r', 'requirements.txt',
-        external=external
-    )
 
 
 @nox.session(name=session_name('test'), python=supported_python_versions)
