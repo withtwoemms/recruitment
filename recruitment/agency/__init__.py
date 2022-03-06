@@ -70,15 +70,11 @@ class Communicator:
     # declare receivers
     # list receivers
 
-    def __init__(
-        self,
-        config: Config,
-        # client_provider: Callable[[], boto3.Session.client]
+    def __init__(self, config: Config,
     ):
         broker = Broker(config.service_name)  # maybe redundant
         _client = partial(boto3.client, service_name=broker.name)
         for alias, method in broker.interface.items():
-            # TODO (withtwoemms) -- validate config.region_name and .endpoint_url
             try:
                 client = _client(
                     region_name=config.region_name, endpoint_url=config.endpoint_url
