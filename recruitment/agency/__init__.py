@@ -98,7 +98,7 @@ class Communicator:
             super().__init__(str(given))
 
 
-class Agent:
+class Publisher:
 
     # perform actions
     # TODO (withtwoemms) -- add error logfile header for simpler parsing
@@ -131,7 +131,7 @@ class Agent:
             return send_communique.perform()
 
 
-class Consumer(Agent):
+class Consumer(Publisher):
     """Will read from local storage and retry failed Agent.publish Actions"""
     
     def consume(self):
