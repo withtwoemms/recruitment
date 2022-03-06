@@ -52,6 +52,9 @@ class Config:
     aws_secret_access_key: Optional[str] = None
     endpoint_url: Optional[str] = None
 
+    def asfile(self, profile: str = 'default'):
+        return f'[{profile}]\n{str(self)}'
+
     def __post_init__(self):
         if isinstance(self.service_name, Broker):
             self.service_name = self.service_name.value
@@ -59,9 +62,15 @@ class Config:
             self.service_name = Broker(self.service_name).value
 
     def __str__(self):
+        """Produces a string compatible with the AWS CLI tool
+        (see documentation for details:
+         https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html)
+        """
         return reduce(
-            lambda a, b: f'{a}' + f'{b[0]}={b[1]}, ', asdict(self).items(), ''
-        ).strip(', ')
+            lambda a, b: f'{a}' + f'{b[0]}={b[1] if b[1] else ""}\n',
+            asdict(self).items(),
+            '',
+        ).strip()
 
 
 class Communicator:
@@ -70,15 +79,11 @@ class Communicator:
     # declare receivers
     # list receivers
 
-    def __init__(
-        self,
-        config: Config,
-        # client_provider: Callable[[], boto3.Session.client]
+    def __init__(self, config: Config,
     ):
         broker = Broker(config.service_name)  # maybe redundant
         _client = partial(boto3.client, service_name=broker.name)
         for alias, method in broker.interface.items():
-            # TODO (withtwoemms) -- validate config.region_name and .endpoint_url
             try:
                 client = _client(
                     region_name=config.region_name, endpoint_url=config.endpoint_url
