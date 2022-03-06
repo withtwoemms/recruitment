@@ -131,7 +131,7 @@ class Agent:
             return send_communique.perform()
 
 
-class Janitor(Agent):
+class Consumer(Agent):
     """Will read from local storage and retry failed Agent.publish Actions"""
     
     def consume(self):
