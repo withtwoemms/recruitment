@@ -2,11 +2,11 @@ import boto3
 
 from dataclasses import asdict
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 from enum import auto
 from functools import reduce
 from functools import partial
+from os import environ as envvars
 from pathlib import Path
 from typing import Callable
 from typing import Dict
@@ -96,33 +96,31 @@ class Communicator:
 class Agent:
 
     # perform actions
-    # TODO (withtwoemms) -- add an error logfile head so the message can be parsed from the log entry prefix
+    # TODO (withtwoemms) -- add error logfile header for simpler parsing
 
-    local_storage_dir = Path.home() / '.recruitement/agency/'
-    error_logfilename = 'communication.errors'
+    local_storage_dir = Path.home() / '.recruitment/agency/'
+    deadletters = local_storage_dir / envvars.get('DEADLETTER_FILE', 'dead.letters')
 
     def __init__(
         self,
         communicator: Communicator,
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
+        record_failure_provider: Optional[Callable[[], Write]] = None,
     ):
         self.communicator = communicator
         self.retry_policy_provider = retry_policy_provider
+        self.record_failure_provider = record_failure_provider
 
     def publish(self, *args, **kwargs):
         send_communique = Call(Closure(self.communicator.send, *args, **kwargs))
-        record_failure = Write(
-            prefix=f'[{datetime.now()}] -- ',
-            filename=self.local_storage_dir / self.error_logfilename,
-            to_write='failed',
-            append=True,
-            mkdir=True,
-        )
         if self.retry_policy_provider:
             retry_policy = self.retry_policy_provider(send_communique)
             result = retry_policy.perform()
-            if not result.successful:
+
+            if not result.successful and self.record_failure_provider:
+                record_failure = self.record_failure_provider()
                 record_failure.perform()
+
             return result, retry_policy.attempts
         else:
             return send_communique.perform()

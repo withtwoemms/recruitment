@@ -1,3 +1,6 @@
+from contextlib import contextmanager
+from io import IOBase as Buffer
+
 from botocore.session import get_session
 
 
@@ -18,3 +21,13 @@ fake_credentials = {
 
 def client(client_type: str, region_name: str):
     return get_session().create_client(client_type, region_name=region_name)
+
+
+@contextmanager
+def uncloseable(buffer: Buffer):
+    """Context manager which makes the buffer's close operation a no-op"""
+    close = buffer.close
+    buffer.close = lambda: None
+    yield buffer
+    buffer.close = close
+    buffer.seek(0)  # fake close
