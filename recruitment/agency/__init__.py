@@ -52,6 +52,16 @@ class Config:
     aws_secret_access_key: Optional[str] = None
     endpoint_url: Optional[str] = None
 
+    @staticmethod
+    def fromenv(service_name: str):
+        return Config(
+            service_name=service_name,
+            region_name=envvars.get('AWS_REGION_NAME'),
+            aws_access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
+            endpoint_url=envvars.get('AWS_ENDPOINT_URL')
+        )
+
     def asfile(self, profile: str = 'default'):
         return f'[{profile}]\n{str(self)}'
 
