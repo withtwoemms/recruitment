@@ -145,3 +145,18 @@ class Publisher:
             return result, retry_policy.attempts
         else:
             return send_communique.perform()
+
+
+class Consumer:
+
+    # TODO (withtwoemms) -- add error logfile header for simpler parsing
+
+    deadletter_file = deadletters / 'consumer' / 'letters'
+
+    def consume(self):
+        """Consume from message bus"""
+        raise NotImplementedError()
+
+    def take_deadletter(self):
+        _consume = Remove(filename=self.deadletter_file)
+        return _consume.perform()
