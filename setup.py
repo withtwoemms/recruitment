@@ -19,7 +19,7 @@ setup(
     maintainer_email='withtwoemms@gmail.com',
     url='https://github.com/withtwoemms/recruitment',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'Intended Audience :: Education',
         'Intended Audience :: Science/Research',
