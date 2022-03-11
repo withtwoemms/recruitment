@@ -22,6 +22,9 @@ from actionpack.actions import Write
 from actionpack.utils import Closure
 
 
+local_storage_dir = Path.home() / '.recruitment/agency/'
+deadletters = local_storage_dir / 'deadletters'
+
 class Broker(Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name
@@ -52,6 +55,16 @@ class Config:
     aws_secret_access_key: Optional[str] = None
     endpoint_url: Optional[str] = None
 
+    @staticmethod
+    def fromenv(service_name: str):
+        return Config(
+            service_name=service_name,
+            region_name=envvars.get('AWS_REGION_NAME'),
+            aws_access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
+            endpoint_url=envvars.get('AWS_ENDPOINT_URL')
+        )
+
     def asfile(self, profile: str = 'default'):
         return f'[{profile}]\n{str(self)}'
 
@@ -79,8 +92,7 @@ class Communicator:
     # declare receivers
     # list receivers
 
-    def __init__(self, config: Config,
-    ):
+    def __init__(self, config: Config):
         broker = Broker(config.service_name)  # maybe redundant
         _client = partial(boto3.client, service_name=broker.name)
         for alias, method in broker.interface.items():
@@ -95,24 +107,28 @@ class Communicator:
 
     class FailedToInstantiate(Exception):
         def __init__(self, given: Config):
-            super().__init__(str(given))
+            redaction = '*' * 10
+            redacted_config = Config(
+                service_name=given.service_name,
+                region_name=given.region_name,
+                aws_access_key_id=redaction,
+                aws_secret_access_key=redaction,
+                endpoint_url=given.endpoint_url
+            )
+            super().__init__(str(redacted_config))
 
 
-class Agent:
+class Publisher:
 
-    # perform actions
-    # TODO (withtwoemms) -- add error logfile header for simpler parsing
-
-    local_storage_dir = Path.home() / '.recruitment/agency/'
-    deadletters = local_storage_dir / envvars.get('DEADLETTER_FILE', 'dead.letters')
+    # publish messages
 
     def __init__(
         self,
-        communicator: Communicator,
+        config: Config = Config.fromenv('sns'),
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
         record_failure_provider: Optional[Callable[[], Write]] = None,
     ):
-        self.communicator = communicator
+        self.communicator = Communicator(config)
         self.retry_policy_provider = retry_policy_provider
         self.record_failure_provider = record_failure_provider
 
@@ -131,13 +147,27 @@ class Agent:
             return send_communique.perform()
 
 
-class Janitor(Agent):
-    """Will read from local storage and retry failed Agent.publish Actions"""
-    
+class Consumer:
+
+    # TODO (withtwoemms) -- add error logfile header for simpler parsing
+
+    deadletter_file = deadletters / 'consumer' / 'letters'
+
     def consume(self):
-        _consume = Remove(filename=self.local_storage_dir / self.error_logfilename)
-        result = _consume.perform()
-        if result.successful:
-            return result.value
-        else:
-            raise result.value
+        """Consume from message bus"""
+        raise NotImplementedError()
+
+    def take_deadletter(self):
+        _consume = Remove(filename=self.deadletter_file)
+        return _consume.perform()
+
+
+class Agent(Consumer, Publisher):
+
+    def __init__(
+        self,
+        config: Config = Config.fromenv('sns'),
+        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
+        record_failure_provider: Optional[Callable[[], Write]] = None,
+    ):
+        Publisher.__init__(self, config, retry_policy_provider, record_failure_provider)

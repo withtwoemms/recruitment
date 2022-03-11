@@ -1,6 +1,8 @@
+from os import environ as envvars
 from dataclasses import asdict
 from textwrap import dedent
 from unittest import TestCase
+from unittest.mock import patch
 
 from tests.recruitment.agency import acceptable_broker_names
 from tests.recruitment.agency import fake_credentials
@@ -58,3 +60,20 @@ class ConfigTest(TestCase):
             config_missing_values.asfile(profile=profile_name),
             f'[{profile_name}]\n' + self.expected_serialization_missing_values,
         )
+
+    @patch.dict(
+        envvars,
+        {
+            'AWS_REGION_NAME': fake_credentials['region_name'],
+            'AWS_ACCESS_KEY_ID': fake_credentials['aws_access_key_id'],
+            'AWS_SECRET_ACCESS_KEY': fake_credentials['aws_secret_access_key'],
+            'AWS_ENDPOINT_URL': fake_credentials['endpoint_url'],
+        },
+        clear=True
+    )
+    def test_can_constitute_from_environment_variabiles(self):
+        config = Config.fromenv(self.broker_name)
+        self.assertEqual(config.region_name, fake_credentials['region_name'])
+        self.assertEqual(config.aws_access_key_id, fake_credentials['aws_access_key_id'])
+        self.assertEqual(config.aws_secret_access_key, fake_credentials['aws_secret_access_key'])
+        self.assertEqual(config.endpoint_url, fake_credentials['endpoint_url'])
