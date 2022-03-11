@@ -22,6 +22,9 @@ from actionpack.actions import Write
 from actionpack.utils import Closure
 
 
+local_storage_dir = Path.home() / '.recruitment/agency/'
+deadletters = local_storage_dir / 'deadletters'
+
 class Broker(Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name
@@ -89,8 +92,7 @@ class Communicator:
     # declare receivers
     # list receivers
 
-    def __init__(self, config: Config,
-    ):
+    def __init__(self, config: Config):
         broker = Broker(config.service_name)  # maybe redundant
         _client = partial(boto3.client, service_name=broker.name)
         for alias, method in broker.interface.items():
@@ -105,24 +107,28 @@ class Communicator:
 
     class FailedToInstantiate(Exception):
         def __init__(self, given: Config):
-            super().__init__(str(given))
+            redaction = '*' * 10
+            redacted_config = Config(
+                service_name=given.service_name,
+                region_name=given.region_name,
+                aws_access_key_id=redaction,
+                aws_secret_access_key=redaction,
+                endpoint_url=given.endpoint_url
+            )
+            super().__init__(str(redacted_config))
 
 
 class Publisher:
 
-    # perform actions
-    # TODO (withtwoemms) -- add error logfile header for simpler parsing
-
-    local_storage_dir = Path.home() / '.recruitment/agency/'
-    deadletters = local_storage_dir / envvars.get('DEADLETTER_FILE', 'dead.letters')
+    # publish messages
 
     def __init__(
         self,
-        communicator: Communicator,
+        config: Config = Config.fromenv('sns'),
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
         record_failure_provider: Optional[Callable[[], Write]] = None,
     ):
-        self.communicator = communicator
+        self.communicator = Communicator(config)
         self.retry_policy_provider = retry_policy_provider
         self.record_failure_provider = record_failure_provider
 
@@ -139,15 +145,3 @@ class Publisher:
             return result, retry_policy.attempts
         else:
             return send_communique.perform()
-
-
-class Consumer(Publisher):
-    """Will read from local storage and retry failed Agent.publish Actions"""
-    
-    def consume(self):
-        _consume = Remove(filename=self.local_storage_dir / self.error_logfilename)
-        result = _consume.perform()
-        if result.successful:
-            return result.value
-        else:
-            raise result.value
