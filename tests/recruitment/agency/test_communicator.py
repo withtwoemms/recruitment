@@ -19,7 +19,11 @@ class CommunicatorTest(TestCase):
     def test_cannot_instantiate_with_invalid_Config(self, mock_boto_client):
         mock_boto_client.side_effect = raise_this(exception=ValueError)
         with self.assertRaises(Communicator.FailedToInstantiate):
-            Communicator(config=Config(Broker.sns))  # all credentials are missing
+            Communicator(config=Config(Broker.sns))
+
+        mock_boto_client.side_effect = raise_this(exception=NoRegionError)
+        with self.assertRaises(Communicator.FailedToInstantiate):
+            Communicator(config=Config(Broker.sns))
 
     @patch('boto3.client')
     def test_communicator_instantiation_failure_redacts_secrets(self, mock_boto_client):
