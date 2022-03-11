@@ -1,12 +1,11 @@
-from logging import exception
 from unittest import TestCase
 from unittest.mock import patch
 
-from botocore.exceptions import NoRegionError
 from botocore.stub import Stubber
 
 from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import client
+from tests.recruitment.agency import raise_this
 from recruitment.agency import Broker
 from recruitment.agency import Config
 from recruitment.agency import Communicator
@@ -16,12 +15,6 @@ class CommunicatorTest(TestCase):
 
     @patch('boto3.client')
     def test_cannot_instantiate_with_invalid_Config(self, mock_boto_client):
-        def raise_this(**kwargs):
-            exception = kwargs['exception']
-            def will_raise(**kwargs):
-                raise exception
-            return will_raise
-        
         mock_boto_client.side_effect = raise_this(exception=ValueError)
         with self.assertRaises(Communicator.FailedToInstantiate):
             Communicator(config=Config(Broker.sns))  # all credentials are missing
