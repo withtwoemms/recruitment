@@ -160,3 +160,14 @@ class Consumer:
     def take_deadletter(self):
         _consume = Remove(filename=self.deadletter_file)
         return _consume.perform()
+
+
+class Agent(Consumer, Publisher):
+
+    def __init__(
+        self,
+        config: Config = Config.fromenv('sns'),
+        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
+        record_failure_provider: Optional[Callable[[], Write]] = None,
+    ):
+        Publisher.__init__(self, config, retry_policy_provider, record_failure_provider)
