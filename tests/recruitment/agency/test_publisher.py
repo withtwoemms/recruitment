@@ -15,8 +15,8 @@ from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import uncloseable
 from recruitment.agency import Publisher
 from recruitment.agency import Broker
-from recruitment.agency import Communicator
 from recruitment.agency import Config
+from recruitment.agency import deadletters
 
 
 class PublisherTest(TestCase):
@@ -28,7 +28,7 @@ class PublisherTest(TestCase):
 
     write_to_deadletter_file = Write(
         prefix=f'-> [{datetime.utcnow()}] -- ',
-        filename=Publisher.deadletters,
+        filename=deadletters,
         to_write='failed',
         append=True,
         mkdir=True,
@@ -43,7 +43,7 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 1
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 2
             smith = Publisher(
-                communicator=Communicator(Config(self.broker, **fake_credentials)),
+                config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: RetryPolicy(
                     action, max_retries=2, should_record=True
                 ),
@@ -67,7 +67,7 @@ class PublisherTest(TestCase):
                 self.broker.interface['send'], self.expected_publish_response
             )
             smith = Publisher(
-                communicator=Communicator(Config(self.broker, **fake_credentials)),
+                config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: retry_policy_provider(action),
             )
             result, attempts = smith.publish(Message='Mr. Anderson...')
@@ -97,7 +97,7 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
             smith = Publisher(
-                communicator=Communicator(Config(self.broker, **fake_credentials)),
+                config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: retry_policy_provider(
                     action,
                     reaction=callback,  # called if the RetryPolicy expires
@@ -124,7 +124,7 @@ class PublisherTest(TestCase):
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 smith = Publisher(
-                    communicator=Communicator(Config(self.broker, **fake_credentials)),
+                    config=Config(self.broker, **fake_credentials),
                     retry_policy_provider=lambda action: retry_policy_provider(action),
                     record_failure_provider=lambda: self.write_to_deadletter_file,
                 )
