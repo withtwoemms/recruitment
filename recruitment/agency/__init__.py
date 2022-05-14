@@ -26,8 +26,7 @@ local_storage_dir = Path.home() / '.recruitment/agency/'
 deadletters = local_storage_dir / 'deadletters'
 
 class Broker(Enum):
-    def _generate_next_value_(name, start, count, last_values):
-        return name
+    """A repository for declaring services and their interfaces"""
 
     s3 = auto()
     sns = auto()
@@ -46,9 +45,14 @@ class Broker(Enum):
         }
         return methods_for[self]
 
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
 
 @dataclass
 class Config:
+    """An object for conveying configuration info"""
+
     service_name: Union[str, Broker]
     region_name: Optional[str] = None
     aws_access_key_id: Optional[str] = None
@@ -87,10 +91,7 @@ class Config:
 
 
 class Communicator:
-
-    # send messages
-    # declare receivers
-    # list receivers
+    """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
         broker = Broker(config.service_name)  # maybe redundant
@@ -119,8 +120,7 @@ class Communicator:
 
 
 class Publisher:
-
-    # publish messages
+    """A namespace for publishing messages"""
 
     def __init__(
         self,
@@ -148,8 +148,10 @@ class Publisher:
 
 
 class Consumer:
+    """A namespace for consuming messages
 
-    # TODO (withtwoemms) -- add error logfile header for simpler parsing
+    TODO (withtwoemms) -- add error logfile header for simpler parsing
+    """
 
     deadletter_file = deadletters / 'consumer' / 'letters'
 
@@ -163,6 +165,7 @@ class Consumer:
 
 
 class Agent(Consumer, Publisher):
+    """A namespace for consuming and/or publishing messages"""
 
     def __init__(
         self,
