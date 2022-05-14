@@ -28,6 +28,9 @@ deadletters = local_storage_dir / 'deadletters'
 class Broker(Enum):
     """A repository for declaring services and their interfaces"""
 
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
     s3 = auto()
     sns = auto()
     sqs = auto()
@@ -44,9 +47,6 @@ class Broker(Enum):
             Broker.kinesis: {send: 'put_record', declare_receiver: 'create_stream'},
         }
         return methods_for[self]
-
-    def _generate_next_value_(name, start, count, last_values):
-        return name
 
 
 @dataclass
@@ -102,7 +102,6 @@ class Communicator:
                     region_name=config.region_name, endpoint_url=config.endpoint_url
                 )
             except (ValueError, NoRegionError) as e:
-                # NOTE: can replace `from` with 'dispatch across exceptions' for nuance
                 raise Communicator.FailedToInstantiate(given=config) from e
             setattr(self, alias, getattr(client, method))
 
