@@ -78,3 +78,11 @@ class ConfigTest(TestCase):
         self.assertEqual(config.aws_access_key_id, fake_credentials['aws_access_key_id'])
         self.assertEqual(config.aws_secret_access_key, fake_credentials['aws_secret_access_key'])
         self.assertEqual(config.endpoint_url, fake_credentials['endpoint_url'])
+
+    def test_cannot_instantiate_without_service_name(self):
+        with self.assertRaises(Config.AttributeDeclaredIncorrectly):
+            Config(None)
+
+    def test_cannot_instantiate_with_invalid_service_name(self):
+        with self.assertRaises(Config.AttributeDeclaredIncorrectly):
+            Config(1)
