@@ -28,7 +28,7 @@ class PublisherTest(TestCase):
 
     write_to_deadletter_file = Write(
         prefix=f'-> [{datetime.utcnow()}] -- ',
-        filename=deadletters,
+        filename=deadletters / 'PublisherTest.failures',
         to_write='failed',
         append=True,
         mkdir=True,
