@@ -13,13 +13,13 @@ from botocore.stub import Stubber
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import uncloseable
-from recruitment.agency import Publisher
+from recruitment.agency import Agent
 from recruitment.agency import Broker
+from recruitment.agency import Communicator
 from recruitment.agency import Config
-from recruitment.agency import deadletters
 
 
-class PublisherTest(TestCase):
+class AgentTest(TestCase):
 
     broker = Broker.sns
     region = 'some-region-1'
@@ -28,7 +28,7 @@ class PublisherTest(TestCase):
 
     write_to_deadletter_file = Write(
         prefix=f'-> [{datetime.utcnow()}] -- ',
-        filename=deadletters / 'PublisherTest.failures',
+        filename=Agent.deadletter_file,
         to_write='failed',
         append=True,
         mkdir=True,
@@ -42,13 +42,13 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')  # attempt
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 1
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 2
-            publisher = Publisher(
+            smith = Agent(
                 config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: RetryPolicy(
                     action, max_retries=2, should_record=True
                 ),
             )
-            result, attempts = publisher.publish(Message='Some message...')
+            result, attempts = smith.publish(Message='Mr. Anderson...')
 
         self.assertFalse(result.successful)
         self.assertIsInstance(result.value, RetryPolicy.Expired)
@@ -66,11 +66,11 @@ class PublisherTest(TestCase):
             stubber.add_response(
                 self.broker.interface['send'], self.expected_publish_response
             )
-            publisher = Publisher(
+            smith = Agent(
                 config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: retry_policy_provider(action),
             )
-            result, attempts = publisher.publish(Message='Some message...')
+            result, attempts = smith.publish(Message='Mr. Anderson...')
 
         self.assertTrue(result.successful)
         self.assertEqual(result.value, self.expected_publish_response)
@@ -96,14 +96,14 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
-            publisher = Publisher(
+            smith = Agent(
                 config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: retry_policy_provider(
                     action,
                     reaction=callback,  # called if the RetryPolicy expires
                 ),
             )
-            result, attempts = publisher.publish(Message='Some message...')
+            result, attempts = smith.publish(Message='Mr. Anderson...')
 
         self.assertFalse(result.successful)
         self.assertIsInstance(result.value, RetryPolicy.Expired)
@@ -123,12 +123,12 @@ class PublisherTest(TestCase):
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
-                publisher = Publisher(
+                smith = Agent(
                     config=Config(self.broker, **fake_credentials),
                     retry_policy_provider=lambda action: retry_policy_provider(action),
                     record_failure_provider=lambda: self.write_to_deadletter_file,
                 )
-                result, attempts = publisher.publish(Message='Some message...')
+                result, attempts = smith.publish(Message='Mr. Anderson...')
 
         buffer_contents: str = buffer.read()
         self.assertTrue(buffer_contents.startswith('->'))

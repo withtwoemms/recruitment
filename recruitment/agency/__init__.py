@@ -26,6 +26,8 @@ local_storage_dir = Path.home() / '.recruitment/agency/'
 deadletters = local_storage_dir / 'deadletters'
 
 class Broker(Enum):
+    """A repository for declaring services and their interfaces"""
+
     def _generate_next_value_(name, start, count, last_values):
         return name
 
@@ -49,6 +51,8 @@ class Broker(Enum):
 
 @dataclass
 class Config:
+    """An object for conveying configuration info"""
+
     service_name: Union[str, Broker]
     region_name: Optional[str] = None
     aws_access_key_id: Optional[str] = None
@@ -56,9 +60,9 @@ class Config:
     endpoint_url: Optional[str] = None
 
     @staticmethod
-    def fromenv(service_name: str):
+    def fromenv():
         return Config(
-            service_name=service_name,
+            service_name=envvars.get('AWS_SERVICE_NAME'),
             region_name=envvars.get('AWS_REGION_NAME'),
             aws_access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
@@ -69,10 +73,18 @@ class Config:
         return f'[{profile}]\n{str(self)}'
 
     def __post_init__(self):
+        if self.service_name is None:
+            raise Config.AttributeDeclaredIncorrectly('Missing service_name.')
+
         if isinstance(self.service_name, Broker):
             self.service_name = self.service_name.value
-        else:
+        elif isinstance(self.service_name, str):
             self.service_name = Broker(self.service_name).value
+        else:
+            service_name_type = type(self.service_name).__name__
+            raise Config.AttributeDeclaredIncorrectly(
+                f'Service name must be a <Broker> or <str>. Received <{service_name_type}>.'
+            )
 
     def __str__(self):
         """Produces a string compatible with the AWS CLI tool
@@ -85,12 +97,12 @@ class Config:
             '',
         ).strip()
 
+    class AttributeDeclaredIncorrectly(Exception):
+        pass
+
 
 class Communicator:
-
-    # send messages
-    # declare receivers
-    # list receivers
+    """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
         broker = Broker(config.service_name)  # maybe redundant
@@ -101,7 +113,6 @@ class Communicator:
                     region_name=config.region_name, endpoint_url=config.endpoint_url
                 )
             except (ValueError, NoRegionError) as e:
-                # NOTE: can replace `from` with 'dispatch across exceptions' for nuance
                 raise Communicator.FailedToInstantiate(given=config) from e
             setattr(self, alias, getattr(client, method))
 
@@ -119,12 +130,11 @@ class Communicator:
 
 
 class Publisher:
-
-    # publish messages
+    """A namespace for publishing messages"""
 
     def __init__(
         self,
-        config: Config = Config.fromenv('sns'),
+        config: Config,
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
         record_failure_provider: Optional[Callable[[], Write]] = None,
     ):
@@ -148,8 +158,10 @@ class Publisher:
 
 
 class Consumer:
+    """A namespace for consuming messages
 
-    # TODO (withtwoemms) -- add error logfile header for simpler parsing
+    TODO (withtwoemms) -- add error logfile header for simpler parsing
+    """
 
     deadletter_file = deadletters / 'consumer' / 'letters'
 
@@ -163,10 +175,11 @@ class Consumer:
 
 
 class Agent(Consumer, Publisher):
+    """A namespace for consuming and/or publishing messages"""
 
     def __init__(
         self,
-        config: Config = Config.fromenv('sns'),
+        config: Config,
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
         record_failure_provider: Optional[Callable[[], Write]] = None,
     ):
