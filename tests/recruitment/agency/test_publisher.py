@@ -42,13 +42,13 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')  # attempt
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 1
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 2
-            smith = Publisher(
+            publisher = Publisher(
                 config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: RetryPolicy(
                     action, max_retries=2, should_record=True
                 ),
             )
-            result, attempts = smith.publish(Message='Mr. Anderson...')
+            result, attempts = publisher.publish(Message='Some message...')
 
         self.assertFalse(result.successful)
         self.assertIsInstance(result.value, RetryPolicy.Expired)
@@ -66,11 +66,11 @@ class PublisherTest(TestCase):
             stubber.add_response(
                 self.broker.interface['send'], self.expected_publish_response
             )
-            smith = Publisher(
+            publisher = Publisher(
                 config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: retry_policy_provider(action),
             )
-            result, attempts = smith.publish(Message='Mr. Anderson...')
+            result, attempts = publisher.publish(Message='Some message...')
 
         self.assertTrue(result.successful)
         self.assertEqual(result.value, self.expected_publish_response)
@@ -96,14 +96,14 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
-            smith = Publisher(
+            publisher = Publisher(
                 config=Config(self.broker, **fake_credentials),
                 retry_policy_provider=lambda action: retry_policy_provider(
                     action,
                     reaction=callback,  # called if the RetryPolicy expires
                 ),
             )
-            result, attempts = smith.publish(Message='Mr. Anderson...')
+            result, attempts = publisher.publish(Message='Some message...')
 
         self.assertFalse(result.successful)
         self.assertIsInstance(result.value, RetryPolicy.Expired)
@@ -123,12 +123,12 @@ class PublisherTest(TestCase):
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
-                smith = Publisher(
+                publisher = Publisher(
                     config=Config(self.broker, **fake_credentials),
                     retry_policy_provider=lambda action: retry_policy_provider(action),
                     record_failure_provider=lambda: self.write_to_deadletter_file,
                 )
-                result, attempts = smith.publish(Message='Mr. Anderson...')
+                result, attempts = publisher.publish(Message='Some message...')
 
         buffer_contents: str = buffer.read()
         self.assertTrue(buffer_contents.startswith('->'))
