@@ -43,7 +43,7 @@ class CommunicatorTest(TestCase):
         self.assertEqual(str(error_ctx.exception), expected_serialization)
 
     @patch('boto3.client')
-    def test_can_create_topic_and_publish_message(self, mock_boto_client):
+    def test_can_create_topic_and_send_message(self, mock_boto_client):
         region = 'some-region-1'
         topic_name = 'some-topic'
         broker = Broker.sns
