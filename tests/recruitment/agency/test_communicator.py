@@ -75,3 +75,43 @@ class CommunicatorTest(TestCase):
 
         self.assertEqual(topic_creation, expected_topic_response)
         self.assertEqual(message_receipt, expected_publish_response)
+
+    @patch('boto3.client')
+    def test_can_receive_logs_message(self, mock_boto_client):
+        region = 'some-region-1'
+        broker = Broker.logs
+
+        expected_response = {
+            'events': [
+                    {
+                    'timestamp': 1663600455651,
+                    'message': '  File "/usr/local/lib/python3.7/http/client.py", line 1026, in _send_output',
+                    'ingestionTime': 1663600458020
+                }
+            ],
+            'nextForwardToken': '-->',
+            'nextBackwardToken': '<--',
+            'ResponseMetadata': {
+                'RequestId': 'b14a4a55-5ab1-4da0-aa90-eafaa721fdaa',
+                'HTTPStatusCode': 200,
+                'HTTPHeaders': {
+                    'x-amzn-requestid': 'b14a4a55-5ab1-4da0-aa90-eafaa721fdaa',
+                    'content-type': 'application/x-amz-json-1.1',
+                    'content-length': '1057709',
+                    'date': 'Mon, 19 Sep 2022 15:59:05 GMT'
+                },
+                'RetryAttempts': 0
+            }
+        }
+
+        logs = client(broker.name, region)
+        mock_boto_client.return_value = logs
+        with Stubber(logs) as stubber:
+            stubber.add_response(
+                broker.interface['receive'], expected_response
+            )
+
+            commlink = Communicator(Config(broker, **fake_credentials))
+            message_receipt = commlink.receive(logGroupName='someLogGroupName', logStreamName='someLogStreamName')
+
+        self.assertEqual(message_receipt, expected_response)

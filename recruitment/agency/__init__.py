@@ -31,6 +31,7 @@ class Broker(Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name
 
+    logs = auto()
     s3 = auto()
     sns = auto()
     sqs = auto()
@@ -40,7 +41,9 @@ class Broker(Enum):
     def interface(self) -> Dict[str, Optional[str]]:
         send = 'send'
         declare_receiver = 'declare_receiver'
+        receive = 'receive'
         methods_for = {
+            Broker.logs: {receive: 'get_log_events'},
             Broker.s3: {send: 'upload_fileobj', declare_receiver: 'create_bucket'},
             Broker.sns: {send: 'publish', declare_receiver: 'create_topic'},
             Broker.sqs: {send: 'send_message', declare_receiver: 'create_queue'},
