@@ -30,8 +30,8 @@ setup(
         'Programming Language :: Python :: 3.10',
     ],
     install_requires=[
-        'actionpack==1.7.7',
-        'boto3==1.21.10'
+        'actionpack==1.7.9',
+        'boto3==1.21.10',
     ],
 )
 
