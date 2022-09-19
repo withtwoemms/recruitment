@@ -41,7 +41,7 @@ class Broker(Enum):
         send = 'send'
         declare_receiver = 'declare_receiver'
         methods_for = {
-            Broker.s3: {send: 'upload_file', declare_receiver: 'create_bucket'},
+            Broker.s3: {send: 'upload_fileobj', declare_receiver: 'create_bucket'},
             Broker.sns: {send: 'publish', declare_receiver: 'create_topic'},
             Broker.sqs: {send: 'send_message', declare_receiver: 'create_queue'},
             Broker.kinesis: {send: 'put_record', declare_receiver: 'create_stream'},
