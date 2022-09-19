@@ -103,3 +103,11 @@ def test(session):
 @nox.session(name=session_name('build'), python=supported_python_versions)
 def build(session):
     session.run('python', 'setup.py', 'sdist')
+
+
+@nox.session(name=session_name('server'), python=supported_python_versions)
+def server(session):
+    session.run(
+        'python', '-m', 'flask', 'run',
+        env={'FLASK_APP': 'recruitment/tools/server.py'}
+    )
