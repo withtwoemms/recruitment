@@ -122,6 +122,7 @@ class CommunicatorTest(TestCase):
 class TempCommunicatorTest(TestCase):
 
     def test_context(self):
+        config = Config('logs', 'us-east-1','some-acces-key-id', 'some-secret', 'https://some-endpoint.com')
         payload_items = [('testing', 123)]
         logGroupName, logStreamName = 'testing', '123'
         expectations = {
@@ -134,7 +135,7 @@ class TempCommunicatorTest(TestCase):
                 }
             )
         }
-        with FakeCommunicator(Config('logs'), **expectations) as fake_commlink:
+        with FakeCommunicator(config, **expectations) as fake_commlink:
             received = fake_commlink.receive(logGroupName=logGroupName, logStreamName=logStreamName)
 
         self.assertCountEqual(payload_items, received.items())

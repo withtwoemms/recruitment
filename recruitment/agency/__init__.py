@@ -113,7 +113,11 @@ class Communicator:
         for alias, method in broker.interface.items():
             try:
                 client = _client(
-                    region_name=config.region_name, endpoint_url=config.endpoint_url
+                    service_name=config.service_name,
+                    region_name=config.region_name,
+                    aws_access_key_id=config.aws_access_key_id,
+                    aws_secret_access_key=config.aws_secret_access_key,
+                    endpoint_url=config.endpoint_url
                 )
             except (ValueError, NoRegionError) as e:
                 raise Communicator.FailedToInstantiate(given=config) from e
