@@ -1,5 +1,6 @@
 from textwrap import dedent
 from unittest import TestCase
+from unittest.mock import ANY
 from unittest.mock import patch
 
 from botocore.exceptions import NoRegionError
@@ -11,6 +12,7 @@ from tests.recruitment.agency import raise_this
 from recruitment.agency import Broker
 from recruitment.agency import Config
 from recruitment.agency import Communicator
+from recruitment.agency.temp import Communicator as FakeCommunicator
 
 
 class CommunicatorTest(TestCase):
@@ -115,3 +117,24 @@ class CommunicatorTest(TestCase):
             message_receipt = commlink.receive(logGroupName='someLogGroupName', logStreamName='someLogStreamName')
 
         self.assertEqual(message_receipt, expected_response)
+
+
+class TempCommunicatorTest(TestCase):
+
+    def test_context(self):
+        payload_items = [('testing', 123)]
+        logGroupName, logStreamName = 'testing', '123'
+        expectations = {
+            'expected_payload': dict(payload_items),
+            'expected_args': (
+                ANY,
+                {
+                    'logGroupName': logGroupName,
+                    'logStreamName': logStreamName
+                }
+            )
+        }
+        with FakeCommunicator(Config('logs'), **expectations) as fake_commlink:
+            received = fake_commlink.receive(logGroupName=logGroupName, logStreamName=logStreamName)
+
+        self.assertCountEqual(payload_items, received.items())
