@@ -1,5 +1,6 @@
 from typing import Iterable
 from typing import Optional
+from unittest.mock import patch
 
 from recruitment.agency import Communicator as ActualCommunicator
 from recruitment.agency import Config
@@ -20,6 +21,9 @@ class Communicator(ActualCommunicator):
         super().__init__(config)
 
     def __enter__(self):
+        self.patcher = patch('botocore.client.BaseClient._make_api_call')
+        self.mock = self.patcher.start()
+        self.mock.return_value = self.response_provider()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -30,4 +34,5 @@ class Communicator(ActualCommunicator):
             * GetLogEvents
             * {'logGroupName': ..., 'logStreamName': ...}
         """
-        return
+        self.mock.assert_called_with(*self.args_provider(), **self.kwargs_provider())
+        self.patcher.stop()
