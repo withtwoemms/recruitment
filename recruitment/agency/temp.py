@@ -34,5 +34,13 @@ class Communicator(ActualCommunicator):
             * GetLogEvents
             * {'logGroupName': ..., 'logStreamName': ...}
         """
+        print()
+        print()
+        print('HELLO!!!')
+        print(self.args_provider())
+        print(self.kwargs_provider())
+        print('GOODBYE!!!')
+        print()
+        print()
         self.mock.assert_called_with(*self.args_provider(), **self.kwargs_provider())
         self.patcher.stop()
