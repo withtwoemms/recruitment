@@ -116,11 +116,11 @@ class Communicator:
                     region_name=config.region_name, endpoint_url=config.endpoint_url
                 )
             except (ValueError, NoRegionError) as e:
-                raise Communicator.FailedToInstantiate(given=config) from e
+                raise Communicator.FailedToInstantiate(failure=e, given=config) from e
             setattr(self, alias, getattr(client, method))
 
     class FailedToInstantiate(Exception):
-        def __init__(self, given: Config):
+        def __init__(self, given: Config, failure: Optional[Exception] = None):
             redaction = '*' * 10
             redacted_config = Config(
                 service_name=given.service_name,
@@ -129,7 +129,8 @@ class Communicator:
                 aws_secret_access_key=redaction,
                 endpoint_url=given.endpoint_url
             )
-            super().__init__(str(redacted_config))
+            message = str(failure) + str(redacted_config) if failure else str(redacted_config)
+            super().__init__(message)
 
 
 class Publisher:
