@@ -42,5 +42,5 @@ class Communicator(ActualCommunicator):
         print('GOODBYE!!!')
         print()
         print()
-        self.mock.assert_called_with(*self.args_provider(), **self.kwargs_provider())
+        self.mock.assert_any_call(*self.args_provider(), **self.kwargs_provider())
         self.patcher.stop()
