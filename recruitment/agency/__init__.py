@@ -108,11 +108,15 @@ class Communicator:
     """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
+        # is Config here?????
+        print('SUP?')
+        print(f'\n\nCONFIG ==> {config}\n\n')
         broker = Broker(config.service_name)  # maybe redundant
         _client = partial(boto3.client, service_name=broker.name)
         for alias, method in broker.interface.items():
             try:
-                client = _client(
+                print(f'\n\nLATER_CONFIG ==> {config}\n\n')
+                client = _client(  # is it STILL here????
                     region_name=config.region_name, endpoint_url=config.endpoint_url
                 )
             except (ValueError, NoRegionError) as e:
