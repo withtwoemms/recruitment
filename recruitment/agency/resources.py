@@ -31,4 +31,13 @@ class Broker(NaturalEnum):
             Broker.kinesis: {send: 'put_record', declare_receiver: 'create_stream'},
         }
         return methods_for[self]
+
+
+class From(NaturalEnum):
+    env = auto()
+    file = auto()
+
+
+class CloudProvider(NaturalEnum):
+    AWS = auto()
     
