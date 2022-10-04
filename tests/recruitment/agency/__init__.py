@@ -13,8 +13,8 @@ acceptable_broker_names = (
 
 fake_credentials = {
     'region_name': 'somewhere-in-the-world',
-    'aws_access_key_id': 's3curityBadge!',
-    'aws_secret_access_key': 'p@ssw0rd!',
+    'access_key_id': 's3curityBadge!',
+    'secret_access_key': 'p@ssw0rd!',
     'endpoint_url': 'some-computer.com',
 }
 

@@ -1,55 +1,30 @@
 import boto3
 
-from dataclasses import asdict
-from dataclasses import dataclass
-from enum import Enum
-from enum import auto
-from functools import reduce
-from functools import partial
-from os import environ as envvars
-from pathlib import Path
-from typing import Callable
-from typing import Dict
-from typing import Optional
-from typing import Union
-
-from botocore.exceptions import NoRegionError
 from actionpack import Action
 from actionpack.actions import Call
 from actionpack.actions import Remove
 from actionpack.actions import RetryPolicy
 from actionpack.actions import Write
 from actionpack.utils import Closure
+from botocore.exceptions import NoRegionError
+from dataclasses import asdict
+from dataclasses import dataclass
+from functools import reduce
+from functools import partial
+from os import environ as envvars
+from pathlib import Path
+from typing import Callable
+from typing import Optional
+from typing import Union
+
+from recruitment.agency.resources import Broker
+
+from recruitment.agency.resources import CloudProvider
+from recruitment.agency.resources import From
 
 
 local_storage_dir = Path.home() / '.recruitment/agency/'
 deadletters = local_storage_dir / 'deadletters'
-
-class Broker(Enum):
-    """A repository for declaring services and their interfaces"""
-
-    def _generate_next_value_(name, start, count, last_values):
-        return name
-
-    logs = auto()
-    s3 = auto()
-    sns = auto()
-    sqs = auto()
-    kinesis = auto()
-
-    @property
-    def interface(self) -> Dict[str, Optional[str]]:
-        send = 'send'
-        declare_receiver = 'declare_receiver'
-        receive = 'receive'
-        methods_for = {
-            Broker.logs: {receive: 'get_log_events'},
-            Broker.s3: {send: 'upload_fileobj', declare_receiver: 'create_bucket'},
-            Broker.sns: {send: 'publish', declare_receiver: 'create_topic'},
-            Broker.sqs: {send: 'send_message', declare_receiver: 'create_queue'},
-            Broker.kinesis: {send: 'put_record', declare_receiver: 'create_stream'},
-        }
-        return methods_for[self]
 
 
 @dataclass
@@ -58,8 +33,8 @@ class Config:
 
     service_name: Union[str, Broker]
     region_name: Optional[str] = None
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
+    access_key_id: Optional[str] = None
+    secret_access_key: Optional[str] = None
     endpoint_url: Optional[str] = None
 
     @staticmethod
@@ -67,10 +42,22 @@ class Config:
         return Config(
             service_name=envvars.get('AWS_SERVICE_NAME'),
             region_name=envvars.get('AWS_REGION_NAME'),
-            aws_access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
+            access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
+            secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
             endpoint_url=envvars.get('AWS_ENDPOINT_URL')
         )
+
+    def supplement(self, where: str):
+        fromwhere = From(where)
+        unset = {}
+        if fromwhere == From.env:
+            for k, v in asdict(self).items():
+                if v is None:
+                    unset[k] = envvars.get(f'{CloudProvider.AWS.value}_{k.upper()}')
+        if fromwhere == From.file:
+            raise NotImplementedError('Coming soon.')
+
+        return Config(**{**asdict(self), **unset})
 
     def asfile(self, profile: str = 'default'):
         return f'[{profile}]\n{str(self)}'
@@ -125,8 +112,8 @@ class Communicator:
             redacted_config = Config(
                 service_name=given.service_name,
                 region_name=given.region_name,
-                aws_access_key_id=redaction,
-                aws_secret_access_key=redaction,
+                access_key_id=redaction,
+                secret_access_key=redaction,
                 endpoint_url=given.endpoint_url
             )
             super().__init__(str(redacted_config))

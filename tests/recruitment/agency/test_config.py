@@ -16,16 +16,16 @@ class ConfigTest(TestCase):
         f"""\
         service_name={broker_name}
         region_name=somewhere-in-the-world
-        aws_access_key_id=s3curityBadge!
-        aws_secret_access_key=p@ssw0rd!
+        access_key_id=s3curityBadge!
+        secret_access_key=p@ssw0rd!
         endpoint_url=some-computer.com"""
     )
     expected_serialization_missing_values = dedent(
         f"""\
         service_name={broker_name}
         region_name=
-        aws_access_key_id=
-        aws_secret_access_key=
+        access_key_id=
+        secret_access_key=
         endpoint_url="""
     )
 
@@ -66,8 +66,8 @@ class ConfigTest(TestCase):
         {
             'AWS_SERVICE_NAME': broker_name,
             'AWS_REGION_NAME': fake_credentials['region_name'],
-            'AWS_ACCESS_KEY_ID': fake_credentials['aws_access_key_id'],
-            'AWS_SECRET_ACCESS_KEY': fake_credentials['aws_secret_access_key'],
+            'AWS_ACCESS_KEY_ID': fake_credentials['access_key_id'],
+            'AWS_SECRET_ACCESS_KEY': fake_credentials['secret_access_key'],
             'AWS_ENDPOINT_URL': fake_credentials['endpoint_url'],
         },
         clear=True
@@ -75,8 +75,35 @@ class ConfigTest(TestCase):
     def test_can_constitute_from_environment_variabiles(self):
         config = Config.fromenv()
         self.assertEqual(config.region_name, fake_credentials['region_name'])
-        self.assertEqual(config.aws_access_key_id, fake_credentials['aws_access_key_id'])
-        self.assertEqual(config.aws_secret_access_key, fake_credentials['aws_secret_access_key'])
+        self.assertEqual(config.access_key_id, fake_credentials['access_key_id'])
+        self.assertEqual(config.secret_access_key, fake_credentials['secret_access_key'])
+        self.assertEqual(config.endpoint_url, fake_credentials['endpoint_url'])
+
+    @patch.dict(
+        envvars,
+        {
+            'AWS_SERVICE_NAME': broker_name,
+            'AWS_REGION_NAME': fake_credentials['region_name'],
+            'AWS_ACCESS_KEY_ID': fake_credentials['access_key_id'],
+            'AWS_SECRET_ACCESS_KEY': fake_credentials['secret_access_key'],
+            'AWS_ENDPOINT_URL': fake_credentials['endpoint_url'],
+        },
+        clear=True
+    )
+    def test_can_supplement_Config_instance_from_environment(self):
+        some_service_name = 'logs'
+        self.assertNotEqual(self.broker_name, some_service_name)
+        config = Config(service_name=some_service_name)
+        self.assertEqual(config.service_name, some_service_name)
+        self.assertEqual(config.region_name, None)
+        self.assertEqual(config.access_key_id, None)
+        self.assertEqual(config.secret_access_key, None)
+        self.assertEqual(config.endpoint_url, None)
+        config = config.supplement('env')
+        self.assertEqual(config.service_name, some_service_name)
+        self.assertEqual(config.region_name, fake_credentials['region_name'])
+        self.assertEqual(config.access_key_id, fake_credentials['access_key_id'])
+        self.assertEqual(config.secret_access_key, fake_credentials['secret_access_key'])
         self.assertEqual(config.endpoint_url, fake_credentials['endpoint_url'])
 
     def test_cannot_instantiate_without_service_name(self):
