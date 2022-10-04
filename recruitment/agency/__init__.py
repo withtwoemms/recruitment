@@ -47,8 +47,8 @@ class Config:
             endpoint_url=envvars.get('AWS_ENDPOINT_URL')
         )
 
-    def supplement(self, where: str):
-        fromwhere = From(where)
+    def supplement(self, fromehere: str):
+        fromwhere = From(fromehere)
         unset = {}
         if fromwhere == From.env:
             for k, v in asdict(self).items():
