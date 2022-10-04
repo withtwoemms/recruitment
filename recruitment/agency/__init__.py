@@ -1,55 +1,27 @@
 import boto3
 
-from dataclasses import asdict
-from dataclasses import dataclass
-from enum import Enum
-from enum import auto
-from functools import reduce
-from functools import partial
-from os import environ as envvars
-from pathlib import Path
-from typing import Callable
-from typing import Dict
-from typing import Optional
-from typing import Union
-
-from botocore.exceptions import NoRegionError
 from actionpack import Action
 from actionpack.actions import Call
 from actionpack.actions import Remove
 from actionpack.actions import RetryPolicy
 from actionpack.actions import Write
 from actionpack.utils import Closure
+from botocore.exceptions import NoRegionError
+from dataclasses import asdict
+from dataclasses import dataclass
+from functools import reduce
+from functools import partial
+from os import environ as envvars
+from pathlib import Path
+from typing import Callable
+from typing import Optional
+from typing import Union
+
+from recruitment.agency.resources import Broker
 
 
 local_storage_dir = Path.home() / '.recruitment/agency/'
 deadletters = local_storage_dir / 'deadletters'
-
-class Broker(Enum):
-    """A repository for declaring services and their interfaces"""
-
-    def _generate_next_value_(name, start, count, last_values):
-        return name
-
-    logs = auto()
-    s3 = auto()
-    sns = auto()
-    sqs = auto()
-    kinesis = auto()
-
-    @property
-    def interface(self) -> Dict[str, Optional[str]]:
-        send = 'send'
-        declare_receiver = 'declare_receiver'
-        receive = 'receive'
-        methods_for = {
-            Broker.logs: {receive: 'get_log_events'},
-            Broker.s3: {send: 'upload_fileobj', declare_receiver: 'create_bucket'},
-            Broker.sns: {send: 'publish', declare_receiver: 'create_topic'},
-            Broker.sqs: {send: 'send_message', declare_receiver: 'create_queue'},
-            Broker.kinesis: {send: 'put_record', declare_receiver: 'create_stream'},
-        }
-        return methods_for[self]
 
 
 @dataclass
