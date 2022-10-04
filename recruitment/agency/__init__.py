@@ -44,6 +44,9 @@ class Config:
             endpoint_url=envvars.get('AWS_ENDPOINT_URL')
         )
 
+    def supplement(self, where: str):
+        pass
+
     def asfile(self, profile: str = 'default'):
         return f'[{profile}]\n{str(self)}'
 
