@@ -19,6 +19,9 @@ from typing import Union
 
 from recruitment.agency.resources import Broker
 
+from recruitment.agency.resources import CloudProvider
+from recruitment.agency.resources import From
+
 
 local_storage_dir = Path.home() / '.recruitment/agency/'
 deadletters = local_storage_dir / 'deadletters'
@@ -45,7 +48,16 @@ class Config:
         )
 
     def supplement(self, where: str):
-        pass
+        fromwhere = From(where)
+        unset = {}
+        if fromwhere == From.env:
+            for k, v in asdict(self).items():
+                if v is None:
+                    unset[k] = envvars.get(f'{CloudProvider.AWS.value}_{k.upper()}')
+        if fromwhere == From.file:
+            raise NotImplementedError('Coming soon.')
+
+        return Config(**{**asdict(self), **unset})
 
     def asfile(self, profile: str = 'default'):
         return f'[{profile}]\n{str(self)}'
