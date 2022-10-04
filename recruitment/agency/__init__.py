@@ -30,8 +30,8 @@ class Config:
 
     service_name: Union[str, Broker]
     region_name: Optional[str] = None
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
+    access_key_id: Optional[str] = None
+    secret_access_key: Optional[str] = None
     endpoint_url: Optional[str] = None
 
     @staticmethod
@@ -39,8 +39,8 @@ class Config:
         return Config(
             service_name=envvars.get('AWS_SERVICE_NAME'),
             region_name=envvars.get('AWS_REGION_NAME'),
-            aws_access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
+            access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
+            secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
             endpoint_url=envvars.get('AWS_ENDPOINT_URL')
         )
 
@@ -97,8 +97,8 @@ class Communicator:
             redacted_config = Config(
                 service_name=given.service_name,
                 region_name=given.region_name,
-                aws_access_key_id=redaction,
-                aws_secret_access_key=redaction,
+                access_key_id=redaction,
+                secret_access_key=redaction,
                 endpoint_url=given.endpoint_url
             )
             super().__init__(str(redacted_config))

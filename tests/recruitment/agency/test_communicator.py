@@ -33,8 +33,8 @@ class CommunicatorTest(TestCase):
             """\
             service_name=sns
             region_name=
-            aws_access_key_id=**********
-            aws_secret_access_key=**********
+            access_key_id=**********
+            secret_access_key=**********
             endpoint_url="""
         )
 
