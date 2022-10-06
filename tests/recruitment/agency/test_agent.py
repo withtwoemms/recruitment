@@ -43,7 +43,7 @@ class AgentTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 1
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 2
             smith = Agent(
-                config=Config(self.broker, **fake_credentials),
+                communicator=Communicator(Config(self.broker, **fake_credentials)),
                 retry_policy_provider=lambda action: RetryPolicy(
                     action, max_retries=2, should_record=True
                 ),
@@ -67,7 +67,7 @@ class AgentTest(TestCase):
                 self.broker.interface['send'], self.expected_publish_response
             )
             smith = Agent(
-                config=Config(self.broker, **fake_credentials),
+                communicator=Communicator(Config(self.broker, **fake_credentials)),
                 retry_policy_provider=lambda action: retry_policy_provider(action),
             )
             result, attempts = smith.publish(Message='Mr. Anderson...')
@@ -97,7 +97,7 @@ class AgentTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
             smith = Agent(
-                config=Config(self.broker, **fake_credentials),
+                communicator=Communicator(Config(self.broker, **fake_credentials)),
                 retry_policy_provider=lambda action: retry_policy_provider(
                     action,
                     reaction=callback,  # called if the RetryPolicy expires
@@ -124,7 +124,7 @@ class AgentTest(TestCase):
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 smith = Agent(
-                    config=Config(self.broker, **fake_credentials),
+                    communicator=Communicator(Config(self.broker, **fake_credentials)),
                     retry_policy_provider=lambda action: retry_policy_provider(action),
                     record_failure_provider=lambda: self.write_to_deadletter_file,
                 )

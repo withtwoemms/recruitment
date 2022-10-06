@@ -18,7 +18,6 @@ from typing import Optional
 from typing import Union
 
 from recruitment.agency.resources import Broker
-
 from recruitment.agency.resources import CloudProvider
 from recruitment.agency.resources import From
 
@@ -124,11 +123,11 @@ class Publisher:
 
     def __init__(
         self,
-        config: Config,
+        communicator: Communicator,
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
         record_failure_provider: Optional[Callable[[], Write]] = None,
     ):
-        self.communicator = Communicator(config)
+        self.communicator = communicator
         self.retry_policy_provider = retry_policy_provider
         self.record_failure_provider = record_failure_provider
 
@@ -169,8 +168,8 @@ class Agent(Consumer, Publisher):
 
     def __init__(
         self,
-        config: Config,
+        communicator: Communicator,
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
         record_failure_provider: Optional[Callable[[], Write]] = None,
     ):
-        Publisher.__init__(self, config, retry_policy_provider, record_failure_provider)
+        Publisher.__init__(self, communicator, retry_policy_provider, record_failure_provider)
