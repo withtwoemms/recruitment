@@ -90,7 +90,7 @@ class Config:
         pass
 
 
-class Communicator:  # may change name to "Commlink"
+class Commlink:  # may change name to "Commlink"
     """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
@@ -102,7 +102,7 @@ class Communicator:  # may change name to "Commlink"
                     region_name=config.region_name, endpoint_url=config.endpoint_url
                 )
             except (ValueError, NoRegionError) as e:
-                raise Communicator.FailedToInstantiate(given=config) from e
+                raise Commlink.FailedToInstantiate(given=config) from e
             setattr(self, alias, getattr(client, method))
 
     class FailedToInstantiate(Exception):
@@ -133,10 +133,10 @@ class Coordinator:
 
     def __init__(
         self,
-        communicator: Communicator,
+        commlink: Commlink,
         contingency: Optional[ContingencyPlan] = None
     ):
-        self.communicator = communicator
+        self.commlink = commlink
         if contingency:
             self.retry_policy_provider = contingency.retry_policy_provider
             self.record_failure_provider = contingency.record_failure_provider
@@ -167,7 +167,7 @@ class Publisher:
         self.coordinator = coordinator
 
     def publish(self, *args, **kwargs):
-        send_communique = Call(Closure(self.coordinator.communicator.send, *args, **kwargs))
+        send_communique = Call(Closure(self.coordinator.commlink.send, *args, **kwargs))
         return self.coordinator.do(send_communique)
 
 
@@ -181,7 +181,7 @@ class Consumer:
         self.coordinator = coordinator
 
     def consume(self, *args, **kwargs):
-        receive_communique = Call(Closure(self.coordinator.communicator.receive, *args, **kwargs))
+        receive_communique = Call(Closure(self.coordinator.commlink.receive, *args, **kwargs))
         return self.coordinator.do(receive_communique)
 
 

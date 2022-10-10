@@ -2,11 +2,11 @@ from typing import Iterable
 from typing import Optional
 from unittest.mock import patch
 
-from recruitment.agency import Communicator as ActualCommunicator
+from recruitment.agency import Commlink as ActualCommlink
 from recruitment.agency import Config
 
 
-class Communicator(ActualCommunicator):
+class Commlink(ActualCommlink):
 
     def __init__(
         self,
