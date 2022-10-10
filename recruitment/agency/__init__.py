@@ -2,9 +2,6 @@ import boto3
 
 from actionpack import Action
 from actionpack.actions import Call
-from actionpack.actions import Remove
-from actionpack.actions import RetryPolicy
-from actionpack.actions import Write
 from actionpack.utils import Closure
 from botocore.exceptions import NoRegionError
 from dataclasses import asdict
@@ -17,13 +14,16 @@ from typing import Callable
 from typing import Optional
 from typing import Union
 
+from recruitment.agency.protocols import HasContingency
+from recruitment.agency.resources import Append
 from recruitment.agency.resources import Broker
 from recruitment.agency.resources import CloudProvider
 from recruitment.agency.resources import From
+from recruitment.agency.resources import RecordedRetryPolicy
 
 
 local_storage_dir = Path.home() / '.recruitment/agency/'
-deadletters = local_storage_dir / 'deadletters'
+deadletters = local_storage_dir / 'deadletters'  # failures
 
 
 @dataclass
@@ -90,7 +90,7 @@ class Config:
         pass
 
 
-class Communicator:
+class Communicator:  # may change name to "Commlink"
     """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
@@ -118,32 +118,57 @@ class Communicator:
             super().__init__(str(redacted_config))
 
 
-class Publisher:
-    """A namespace for publishing messages"""
+class ContingencyPlan:
+
+    def __init__(
+        self,
+        retry_policy_provider: Optional[Callable[[Action], RecordedRetryPolicy]],
+        record_failure_provider: Optional[Callable[[str], Append]],  # should accept Result; be Optional
+    ):
+        self.retry_policy_provider = retry_policy_provider
+        self.record_failure_provider = record_failure_provider
+
+
+class Coordinator:
 
     def __init__(
         self,
         communicator: Communicator,
-        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
-        record_failure_provider: Optional[Callable[[], Write]] = None,
+        contingency: Optional[ContingencyPlan] = None
     ):
         self.communicator = communicator
-        self.retry_policy_provider = retry_policy_provider
-        self.record_failure_provider = record_failure_provider
+        if contingency:
+            self.retry_policy_provider = contingency.retry_policy_provider
+            self.record_failure_provider = contingency.record_failure_provider
 
-    def publish(self, *args, **kwargs):
-        send_communique = Call(Closure(self.communicator.send, *args, **kwargs))
-        if self.retry_policy_provider:
-            retry_policy = self.retry_policy_provider(send_communique)
+    @property
+    def has_contingency(self) -> bool:
+        return isinstance(self, HasContingency)
+
+    def do(self, action: Action):
+        if self.has_contingency:
+            retry_policy = self.retry_policy_provider(action)
             result = retry_policy.perform()
 
-            if not result.successful and self.record_failure_provider:
-                record_failure = self.record_failure_provider()
+            if not result.successful:
+                error_repr = f'{result.value.__class__.__qualname__} >>> {result.value}' 
+                record_failure = self.record_failure_provider(error_repr)
                 record_failure.perform()
 
-            return result, retry_policy.attempts
+            return result, retry_policy.attempts  # Effort type
         else:
-            return send_communique.perform()
+            return action.perform()
+
+
+class Publisher:
+    """A namespace for publishing messages"""
+
+    def __init__(self, coordinator: Coordinator):
+        self.coordinator = coordinator
+
+    def publish(self, *args, **kwargs):
+        send_communique = Call(Closure(self.coordinator.communicator.send, *args, **kwargs))
+        return self.coordinator.do(send_communique)
 
 
 class Consumer:
@@ -152,24 +177,22 @@ class Consumer:
     TODO (withtwoemms) -- add error logfile header for simpler parsing
     """
 
-    deadletter_file = deadletters / 'consumer' / 'letters'
+    def __init__(self, coordinator: Coordinator):
+        self.coordinator = coordinator
 
-    def consume(self):
-        """Consume from message bus"""
-        raise NotImplementedError()
-
-    def take_deadletter(self):
-        _consume = Remove(filename=self.deadletter_file)
-        return _consume.perform()
+    def consume(self, *args, **kwargs):
+        receive_communique = Call(Closure(self.coordinator.communicator.receive, *args, **kwargs))
+        return self.coordinator.do(receive_communique)
 
 
-class Agent(Consumer, Publisher):
+class Agent:
     """A namespace for consuming and/or publishing messages"""
 
-    def __init__(
-        self,
-        communicator: Communicator,
-        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = None,
-        record_failure_provider: Optional[Callable[[], Write]] = None,
-    ):
-        Publisher.__init__(self, communicator, retry_policy_provider, record_failure_provider)
+    def __init__(self, consumer: Consumer, publisher: Publisher):
+        if not isinstance(consumer, Consumer):
+            raise TypeError(f'{self.__name__} consumer must be of type {Consumer.__name__} not {type(consumer).__name__}')
+        if not isinstance(publisher, Publisher):
+            raise TypeError(f'{self.__name__} publisher must be of type {Publisher.__name__} not {type(publisher).__name__}')
+
+        setattr(self, consumer.consume.__name__, consumer.consume)
+        setattr(self, publisher.publish.__name__, publisher.publish)
