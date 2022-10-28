@@ -80,8 +80,6 @@ def test(session):
     if USEVENV:
         install(session)
 
-    session.run('pip', 'install', '--quiet', '-r', 'requirements.test.txt')
-
     if COVERAGE:
         session.run(
             'python', '-m',
