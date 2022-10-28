@@ -20,7 +20,10 @@ fake_credentials = {
 
 
 def client(client_type: str, region_name: str):
-    return get_session().create_client(client_type, region_name=region_name)
+    return get_session().create_client(
+        client_type,
+        region_name=region_name,
+    )
 
 
 def raise_this(**kwargs):

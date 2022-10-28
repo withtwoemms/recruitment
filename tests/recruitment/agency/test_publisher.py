@@ -13,10 +13,12 @@ from botocore.stub import Stubber
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import uncloseable
-from recruitment.agency import Publisher
+from recruitment.agency import ContingencyPlan
 from recruitment.agency import Broker
 from recruitment.agency import Commlink
+from recruitment.agency import Coordinator
 from recruitment.agency import Config
+from recruitment.agency import Publisher
 from recruitment.agency import deadletters
 
 
@@ -44,10 +46,12 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 1
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 2
             publisher = Publisher(
-                commlink=Commlink(Config(self.broker, **fake_credentials)),
-                retry_policy_provider=lambda action: RetryPolicy(
-                    action, max_retries=2, should_record=True
-                ),
+                coordinator=Coordinator(
+                    commlink=Commlink(Config(self.broker, **fake_credentials)),
+                    contingency=ContingencyPlan(
+                        retry_policy_provider=retry_policy_provider
+                    )
+                )
             )
             result, attempts = publisher.publish(Message='Some message...')
 
@@ -68,14 +72,19 @@ class PublisherTest(TestCase):
                 self.broker.interface['send'], self.expected_publish_response
             )
             publisher = Publisher(
-                commlink=Commlink(Config(self.broker, **fake_credentials)),
-                retry_policy_provider=lambda action: retry_policy_provider(action),
+                coordinator=Coordinator(
+                    commlink=Commlink(Config(self.broker, **fake_credentials)),
+                    contingency=ContingencyPlan(
+                        retry_policy_provider=retry_policy_provider
+                    )
+                )
             )
             result, attempts = publisher.publish(Message='Some message...')
 
         self.assertTrue(result.successful)
         self.assertEqual(result.value, self.expected_publish_response)
-        self.assertEqual(len(attempts), 2)
+        self.assertEqual(len(attempts), 3)
+        self.assertIsInstance(attempts.pop().value, type(self.expected_publish_response))
         for attempt in attempts:
             self.assertIsInstance(attempt.value, ClientError)
 
@@ -98,11 +107,15 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
             publisher = Publisher(
-                commlink=Commlink(Config(self.broker, **fake_credentials)),
-                retry_policy_provider=lambda action: retry_policy_provider(
-                    action,
-                    reaction=callback,  # called if the RetryPolicy expires
-                ),
+                coordinator=Coordinator(
+                    commlink=Commlink(Config(self.broker, **fake_credentials)),
+                    contingency=ContingencyPlan(
+                        retry_policy_provider=lambda action: retry_policy_provider(
+                            action,
+                            reaction=callback,  # called if the RetryPolicy expires
+                        )
+                    )
+                )
             )
             result, attempts = publisher.publish(Message='Some message...')
 
@@ -125,9 +138,13 @@ class PublisherTest(TestCase):
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 publisher = Publisher(
-                    commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    retry_policy_provider=lambda action: retry_policy_provider(action),
-                    record_failure_provider=lambda: self.write_to_deadletter_file,
+                    coordinator=Coordinator(
+                        commlink=Commlink(Config(self.broker, **fake_credentials)),
+                        contingency=ContingencyPlan(
+                            retry_policy_provider=retry_policy_provider,
+                            record_failure_provider=lambda msg: self.write_to_deadletter_file,
+                        )
+                    )
                 )
                 result, attempts = publisher.publish(Message='Some message...')
 
