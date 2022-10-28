@@ -18,6 +18,7 @@ setup(
     maintainer='Emmanuel I. Obi',
     maintainer_email='withtwoemms@gmail.com',
     url='https://github.com/withtwoemms/recruitment',
+    license='MIT',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
@@ -30,7 +31,7 @@ setup(
         'Programming Language :: Python :: 3.10',
     ],
     install_requires=[
-        'actionpack==1.7.10',
+        'actionpack==1.7.12',
         'boto3==1.21.10',
     ],
 )
