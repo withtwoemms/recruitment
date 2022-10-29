@@ -26,6 +26,7 @@ class PublisherTest(TestCase):
     broker = Broker.sns
     region = 'some-region-1'
     sns = client(broker.name, region)
+
     expected_publish_response = {'MessageId': '00000000-0000-0000-0000-000000000000'}
 
     @patch('boto3.client')
@@ -132,8 +133,10 @@ class PublisherTest(TestCase):
                     coordinator=Coordinator(
                         commlink=Commlink(Config(self.broker, **fake_credentials)),
                         contingency=Contingency(
-                            retry_policy_provider=retry_policy_provider,
-                            record_failure_provider=lambda msg: write_to_deadletter_file,
+                            retry_policy_provider=lambda action: retry_policy_provider(
+                                action=action,
+                                reaction=write_to_deadletter_file
+                            ),
                         )
                     )
                 )

@@ -46,29 +46,25 @@ class AgentTest(TestCase):
         'nextBackwardToken': 'string'
     }
 
-    def publisher_provider(self, commlink: Commlink):
+    def publisher_provider(
+        self, commlink: Commlink,
+        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = lambda action: retry_policy_provider(action)
+    ):
         return Publisher(
             coordinator=Coordinator(
                 commlink=commlink,
-                contingency=Contingency(
-                    retry_policy_provider=lambda action: retry_policy_provider(action),
-                    record_failure_provider=lambda msg: write_to_deadletter_file
-                )
+                contingency=Contingency(retry_policy_provider=retry_policy_provider)
             )
         )
 
     def consumer_provider(
         self, commlink: Commlink,
-        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = lambda action: retry_policy_provider(action),
-        record_failure_provider: Optional[Callable[[Action], RetryPolicy]] = lambda msg: write_to_deadletter_file
+        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = lambda action: retry_policy_provider(action)
     ) -> Consumer:
         return Consumer(
             coordinator=Coordinator(
                 commlink=commlink,
-                contingency=Contingency(
-                    retry_policy_provider=retry_policy_provider,
-                    record_failure_provider=record_failure_provider
-                )
+                contingency=Contingency(retry_policy_provider=retry_policy_provider)
             )
         )
 
@@ -209,7 +205,13 @@ class AgentTest(TestCase):
                 sns_stubber.add_client_error(Broker.sns.interface['send'], '500')
                 smith = Agent(
                     consumer=self.consumer_provider(self.commlink_provider(Broker.logs)),
-                    publisher=self.publisher_provider(self.commlink_provider(Broker.sns))
+                    publisher=self.publisher_provider(
+                        commlink=self.commlink_provider(Broker.sns),
+                        retry_policy_provider=lambda action: retry_policy_provider(
+                            action=action,
+                            reaction=write_to_deadletter_file
+                        )
+                    ),
                 )
                 result, attempts = smith.publish(Message='Mr. Anderson...')
 
