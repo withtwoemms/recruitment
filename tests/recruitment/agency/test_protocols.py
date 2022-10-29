@@ -1,4 +1,3 @@
-from actionpack.actions import RetryPolicy
 from unittest import TestCase
 
 from recruitment.agency import Config
@@ -8,6 +7,7 @@ from recruitment.agency import Coordinator
 from recruitment.agency.protocols import HasContingency
 
 from tests.recruitment.agency import acceptable_broker_names
+from tests.recruitment.agency import retry_policy_provider
 
 
 class HasContingencyTest(TestCase):
@@ -33,9 +33,3 @@ class HasContingencyTest(TestCase):
 
     def test_partial_entity_violates_protocol(self):
         self.assertNotIsInstance(Coordinator(commlink=self.commlink), HasContingency)
-
-
-def retry_policy_provider(action, max_retries=2, reaction=None) -> RetryPolicy:
-    return RetryPolicy(
-        action, reaction=reaction, max_retries=max_retries, should_record=True
-    )

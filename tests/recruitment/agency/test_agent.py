@@ -23,6 +23,7 @@ from recruitment.agency import Coordinator
 from recruitment.agency import Publisher
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
+from tests.recruitment.agency import retry_policy_provider
 from tests.recruitment.agency import uncloseable
 
 
@@ -230,9 +231,3 @@ class AgentTest(TestCase):
         self.assertEqual(len(attempts), 3)
         for attempt in attempts:
             self.assertIsInstance(attempt.value, ClientError)
-
-
-def retry_policy_provider(action, max_retries=2, reaction=None) -> RetryPolicy:
-    return RetryPolicy(
-        action, reaction=reaction, max_retries=max_retries, should_record=True
-    )

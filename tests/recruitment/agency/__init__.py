@@ -1,3 +1,4 @@
+from actionpack.actions import RetryPolicy
 from contextlib import contextmanager
 from io import IOBase as Buffer
 
@@ -41,3 +42,8 @@ def uncloseable(buffer: Buffer):
     yield buffer
     buffer.close = close
     buffer.seek(0)  # fake close
+
+def retry_policy_provider(action, max_retries=2, reaction=None) -> RetryPolicy:
+    return RetryPolicy(
+        action, reaction=reaction, max_retries=max_retries, should_record=True
+    )

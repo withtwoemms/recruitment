@@ -10,9 +10,6 @@ from actionpack.utils import Closure
 from botocore.exceptions import ClientError
 from botocore.stub import Stubber
 
-from tests.recruitment.agency import client
-from tests.recruitment.agency import fake_credentials
-from tests.recruitment.agency import uncloseable
 from recruitment.agency import Contingency
 from recruitment.agency import Broker
 from recruitment.agency import Commlink
@@ -20,6 +17,10 @@ from recruitment.agency import Coordinator
 from recruitment.agency import Config
 from recruitment.agency import Publisher
 from recruitment.agency import deadletters
+from tests.recruitment.agency import client
+from tests.recruitment.agency import fake_credentials
+from tests.recruitment.agency import retry_policy_provider
+from tests.recruitment.agency import uncloseable
 
 
 class PublisherTest(TestCase):
@@ -157,9 +158,3 @@ class PublisherTest(TestCase):
         self.assertEqual(len(attempts), 3)
         for attempt in attempts:
             self.assertIsInstance(attempt.value, ClientError)
-
-
-def retry_policy_provider(action, max_retries=2, reaction=None) -> RetryPolicy:
-    return RetryPolicy(
-        action, reaction=reaction, max_retries=max_retries, should_record=True
-    )
