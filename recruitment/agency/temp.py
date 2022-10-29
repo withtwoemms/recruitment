@@ -15,10 +15,10 @@ class Commlink(ActualCommlink):
         expected_args: Optional[Iterable] = None,
         expected_kwargs: Optional[dict] = None
     ):
-        self.response_provider = lambda: expected_payload or {}
-        self.args_provider = lambda: expected_args or {}
-        self.kwargs_provider = lambda: expected_kwargs or {}
         super().__init__(config)
+        self.response_provider = lambda: expected_payload or {}
+        self.args_provider = lambda: expected_args or ()
+        self.kwargs_provider = lambda: expected_kwargs or {}
 
     def __enter__(self):
         self.patcher = patch('botocore.client.BaseClient._make_api_call')

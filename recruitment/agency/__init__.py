@@ -7,7 +7,6 @@ from botocore.exceptions import NoRegionError
 from dataclasses import asdict
 from dataclasses import dataclass
 from functools import reduce
-from functools import partial
 from os import environ as envvars
 from pathlib import Path
 from typing import Callable
@@ -90,16 +89,19 @@ class Config:
         pass
 
 
-class Commlink:  # may change name to "Commlink"
+class Commlink:
     """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
         broker = Broker(config.service_name)  # maybe redundant
-        _client = partial(boto3.client, service_name=broker.name)
         for alias, method in broker.interface.items():
             try:
-                client = _client(
-                    region_name=config.region_name, endpoint_url=config.endpoint_url
+                client = boto3.client(
+                    service_name=config.service_name,
+                    region_name=config.region_name,
+                    aws_access_key_id=config.access_key_id,
+                    aws_secret_access_key=config.secret_access_key,
+                    endpoint_url=config.endpoint_url
                 )
             except (ValueError, NoRegionError) as e:
                 raise Commlink.FailedToInstantiate(given=config) from e
@@ -122,10 +124,11 @@ class ContingencyPlan:
 
     def __init__(
         self,
-        retry_policy_provider: Optional[Callable[[Action], RecordedRetryPolicy]],
-        record_failure_provider: Optional[Callable[[str], Append]],  # should accept Result; be Optional
+        retry_policy_provider: Optional[Callable[[Action], RecordedRetryPolicy]] = None,
+        record_failure_provider: Optional[Callable[[str], Append]] = None,  # should accept Optional[Result]
     ):
-        self.retry_policy_provider = retry_policy_provider
+        if retry_policy_provider:
+            self.retry_policy_provider = retry_policy_provider
         self.record_failure_provider = record_failure_provider
 
 
@@ -152,8 +155,8 @@ class Coordinator:
 
             if not result.successful:
                 error_repr = f'{result.value.__class__.__qualname__} >>> {result.value}' 
-                record_failure = self.record_failure_provider(error_repr)
-                record_failure.perform()
+                if self.record_failure_provider:
+                    self.record_failure_provider(error_repr).perform()
 
             return result, retry_policy.attempts  # Effort type
         else:
