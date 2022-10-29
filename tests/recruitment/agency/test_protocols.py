@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from recruitment.agency import Config
 from recruitment.agency import Commlink
-from recruitment.agency import ContingencyPlan
+from recruitment.agency import Contingency
 from recruitment.agency import Coordinator
 from recruitment.agency.protocols import HasContingency
 
@@ -25,7 +25,7 @@ class HasContingencyTest(TestCase):
     def test_fully_implemented_entities_follow_protol(self):
         coordinator = Coordinator(
             commlink=self.commlink,
-            contingency=ContingencyPlan(
+            contingency=Contingency(
                 retry_policy_provider=retry_policy_provider
             )
         )

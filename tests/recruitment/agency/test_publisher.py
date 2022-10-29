@@ -13,7 +13,7 @@ from botocore.stub import Stubber
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import uncloseable
-from recruitment.agency import ContingencyPlan
+from recruitment.agency import Contingency
 from recruitment.agency import Broker
 from recruitment.agency import Commlink
 from recruitment.agency import Coordinator
@@ -48,7 +48,7 @@ class PublisherTest(TestCase):
             publisher = Publisher(
                 coordinator=Coordinator(
                     commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    contingency=ContingencyPlan(
+                    contingency=Contingency(
                         retry_policy_provider=retry_policy_provider
                     )
                 )
@@ -74,7 +74,7 @@ class PublisherTest(TestCase):
             publisher = Publisher(
                 coordinator=Coordinator(
                     commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    contingency=ContingencyPlan(
+                    contingency=Contingency(
                         retry_policy_provider=retry_policy_provider
                     )
                 )
@@ -109,7 +109,7 @@ class PublisherTest(TestCase):
             publisher = Publisher(
                 coordinator=Coordinator(
                     commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    contingency=ContingencyPlan(
+                    contingency=Contingency(
                         retry_policy_provider=lambda action: retry_policy_provider(
                             action,
                             reaction=callback,  # called if the RetryPolicy expires
@@ -140,7 +140,7 @@ class PublisherTest(TestCase):
                 publisher = Publisher(
                     coordinator=Coordinator(
                         commlink=Commlink(Config(self.broker, **fake_credentials)),
-                        contingency=ContingencyPlan(
+                        contingency=Contingency(
                             retry_policy_provider=retry_policy_provider,
                             record_failure_provider=lambda msg: self.write_to_deadletter_file,
                         )

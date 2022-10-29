@@ -18,7 +18,7 @@ from recruitment.agency import Broker
 from recruitment.agency import Commlink
 from recruitment.agency import Config
 from recruitment.agency import Consumer
-from recruitment.agency import ContingencyPlan
+from recruitment.agency import Contingency
 from recruitment.agency import Coordinator
 from recruitment.agency import Publisher
 from tests.recruitment.agency import client
@@ -58,7 +58,7 @@ class AgentTest(TestCase):
         return Publisher(
             coordinator=Coordinator(
                 commlink=commlink,
-                contingency=ContingencyPlan(
+                contingency=Contingency(
                     retry_policy_provider=lambda action: retry_policy_provider(action),
                     record_failure_provider=lambda msg: self.write_to_deadletter_file
                 )
@@ -73,7 +73,7 @@ class AgentTest(TestCase):
         return Consumer(
             coordinator=Coordinator(
                 commlink=commlink,
-                contingency=ContingencyPlan(
+                contingency=Contingency(
                     retry_policy_provider=retry_policy_provider,
                     record_failure_provider=record_failure_provider
                 )

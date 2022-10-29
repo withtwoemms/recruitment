@@ -120,7 +120,7 @@ class Commlink:
             super().__init__(str(redacted_config))
 
 
-class ContingencyPlan:
+class Contingency:
 
     def __init__(
         self,
@@ -137,7 +137,7 @@ class Coordinator:
     def __init__(
         self,
         commlink: Commlink,
-        contingency: Optional[ContingencyPlan] = None
+        contingency: Optional[Contingency] = None
     ):
         self.commlink = commlink
         if contingency:
