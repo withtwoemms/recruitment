@@ -53,7 +53,7 @@ def uncloseable(buffer: Buffer):
     buffer.close = close
     buffer.seek(0)  # fake close
 
-def retry_policy_provider(action, max_retries=2, reaction=None) -> RetryPolicy:
+def retry_policy_provider(action, reaction=None, max_retries=2) -> RetryPolicy:
     return RetryPolicy(
         action, reaction=reaction, max_retries=max_retries, should_record=True
     )

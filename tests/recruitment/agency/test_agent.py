@@ -19,6 +19,7 @@ from recruitment.agency import Consumer
 from recruitment.agency import Contingency
 from recruitment.agency import Coordinator
 from recruitment.agency import Publisher
+from recruitment.agency import Reaction
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import retry_policy_provider
@@ -48,7 +49,9 @@ class AgentTest(TestCase):
 
     def publisher_provider(
         self, commlink: Commlink,
-        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = lambda action: retry_policy_provider(action)
+        retry_policy_provider: Optional[
+            Callable[[Action], RetryPolicy]
+        ] = lambda action: retry_policy_provider(action)
     ):
         return Publisher(
             coordinator=Coordinator(
@@ -59,7 +62,9 @@ class AgentTest(TestCase):
 
     def consumer_provider(
         self, commlink: Commlink,
-        retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = lambda action: retry_policy_provider(action)
+        retry_policy_provider: Optional[
+            Callable[[Action, Optional[Reaction]], RetryPolicy]
+        ] = lambda action: retry_policy_provider(action)
     ) -> Consumer:
         return Consumer(
             coordinator=Coordinator(
@@ -170,8 +175,8 @@ class AgentTest(TestCase):
                     commlink=self.commlink_provider(Broker.logs),
                     retry_policy_provider=lambda action: retry_policy_provider(
                         action=action,
+                        reaction=callback,  # called if the RetryPolicy fails for any reason
                         max_retries=consumer_max_retries,
-                        reaction=callback  # called if the RetryPolicy fails for any reason
                     )
                 )
             )

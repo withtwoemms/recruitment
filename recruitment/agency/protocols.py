@@ -11,4 +11,3 @@ from actionpack.actions import Write
 @runtime_checkable
 class HasContingency(Protocol):
     retry_policy_provider: Callable[[Action], RetryPolicy]
-    record_failure_provider: Optional[Callable[..., Write]] = None

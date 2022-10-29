@@ -21,6 +21,8 @@ from recruitment.agency.resources import From
 from recruitment.agency.resources import RecordedRetryPolicy
 
 
+Reaction = Action
+
 local_storage_dir = Path.home() / '.recruitment/agency/'
 deadletters = local_storage_dir / 'deadletters'  # failures
 
@@ -124,12 +126,10 @@ class Contingency:
 
     def __init__(
         self,
-        retry_policy_provider: Optional[Callable[[Action], RecordedRetryPolicy]] = None,
-        record_failure_provider: Optional[Callable[[str], Append]] = None,  # should accept Optional[Result]
+        retry_policy_provider: Optional[Callable[[Action, Optional[Reaction]], RecordedRetryPolicy]] = None
     ):
         if retry_policy_provider:
             self.retry_policy_provider = retry_policy_provider
-        self.record_failure_provider = record_failure_provider
 
 
 class Coordinator:
@@ -142,23 +142,15 @@ class Coordinator:
         self.commlink = commlink
         if contingency:
             self.retry_policy_provider = contingency.retry_policy_provider
-            self.record_failure_provider = contingency.record_failure_provider
 
     @property
     def has_contingency(self) -> bool:
         return isinstance(self, HasContingency)
 
-    def do(self, action: Action):
+    def do(self, action: Action, reaction: Optional[Reaction] = None):
         if self.has_contingency:
-            retry_policy = self.retry_policy_provider(action)
-            result = retry_policy.perform()
-
-            if not result.successful:
-                error_repr = f'{result.value.__class__.__qualname__} >>> {result.value}' 
-                if self.record_failure_provider:
-                    self.record_failure_provider(error_repr).perform()
-
-            return result, retry_policy.attempts  # Effort type
+            retry_policy = self.retry_policy_provider(action, reaction) if reaction else self.retry_policy_provider(action)
+            return retry_policy.perform(), retry_policy.attempts  # Effort type
         else:
             return action.perform()
 
