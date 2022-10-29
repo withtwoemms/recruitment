@@ -1,11 +1,9 @@
-from datetime import datetime
 from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
 from actionpack.actions import Call
 from actionpack.actions import RetryPolicy
-from actionpack.actions import Write
 from actionpack.utils import Closure
 from botocore.exceptions import ClientError
 from botocore.stub import Stubber
@@ -16,11 +14,11 @@ from recruitment.agency import Commlink
 from recruitment.agency import Coordinator
 from recruitment.agency import Config
 from recruitment.agency import Publisher
-from recruitment.agency import deadletters
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import retry_policy_provider
 from tests.recruitment.agency import uncloseable
+from tests.recruitment.agency import write_to_deadletter_file
 
 
 class PublisherTest(TestCase):
@@ -29,14 +27,6 @@ class PublisherTest(TestCase):
     region = 'some-region-1'
     sns = client(broker.name, region)
     expected_publish_response = {'MessageId': '00000000-0000-0000-0000-000000000000'}
-
-    write_to_deadletter_file = Write(
-        prefix=f'-> [{datetime.utcnow()}] -- ',
-        filename=deadletters / 'PublisherTest.failures',
-        to_write='failed',
-        append=True,
-        mkdir=True,
-    )
 
     @patch('boto3.client')
     @patch('actionpack.actions.Write.perform')
@@ -143,7 +133,7 @@ class PublisherTest(TestCase):
                         commlink=Commlink(Config(self.broker, **fake_credentials)),
                         contingency=Contingency(
                             retry_policy_provider=retry_policy_provider,
-                            record_failure_provider=lambda msg: self.write_to_deadletter_file,
+                            record_failure_provider=lambda msg: write_to_deadletter_file,
                         )
                     )
                 )

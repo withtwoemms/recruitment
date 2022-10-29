@@ -1,4 +1,3 @@
-from datetime import datetime
 from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
@@ -6,7 +5,6 @@ from unittest.mock import patch
 from actionpack import Action
 from actionpack.actions import Call
 from actionpack.actions import RetryPolicy
-from actionpack.actions import Write
 from actionpack.utils import Closure
 from botocore.exceptions import ClientError
 from botocore.stub import Stubber
@@ -25,6 +23,7 @@ from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
 from tests.recruitment.agency import retry_policy_provider
 from tests.recruitment.agency import uncloseable
+from tests.recruitment.agency import write_to_deadletter_file
 
 
 
@@ -47,21 +46,13 @@ class AgentTest(TestCase):
         'nextBackwardToken': 'string'
     }
 
-    write_to_deadletter_file = Write(
-        prefix=f'-> [{datetime.utcnow()}] -- ',
-        filename='some.file',
-        to_write='failed',
-        append=True,
-        mkdir=True,
-    )
-
     def publisher_provider(self, commlink: Commlink):
         return Publisher(
             coordinator=Coordinator(
                 commlink=commlink,
                 contingency=Contingency(
                     retry_policy_provider=lambda action: retry_policy_provider(action),
-                    record_failure_provider=lambda msg: self.write_to_deadletter_file
+                    record_failure_provider=lambda msg: write_to_deadletter_file
                 )
             )
         )
@@ -69,7 +60,7 @@ class AgentTest(TestCase):
     def consumer_provider(
         self, commlink: Commlink,
         retry_policy_provider: Optional[Callable[[Action], RetryPolicy]] = lambda action: retry_policy_provider(action),
-        record_failure_provider: Optional[Callable[[Action], RetryPolicy]] = lambda msg: AgentTest.write_to_deadletter_file
+        record_failure_provider: Optional[Callable[[Action], RetryPolicy]] = lambda msg: write_to_deadletter_file
     ) -> Consumer:
         return Consumer(
             coordinator=Coordinator(
