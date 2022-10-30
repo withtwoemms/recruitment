@@ -21,6 +21,11 @@ class HasContingencyTest(TestCase):
                 self.retry_policy_provider = 'has requisite attributes'
         self.assertIsInstance(Conformer(), HasContingency)
 
+    def test_arbitrary_class_cannot_adhere_to_HasContingency_protocol(self):
+        class NonConformer:
+            pass
+        self.assertNotIsInstance(NonConformer(), HasContingency)
+
     def test_fully_implemented_entities_follow_protol(self):
         coordinator = Coordinator(
             commlink=self.commlink,
@@ -30,3 +35,14 @@ class HasContingencyTest(TestCase):
 
     def test_partial_entity_violates_protocol(self):
         self.assertNotIsInstance(Coordinator(commlink=self.commlink), HasContingency)
+
+
+class ContingencyTest(TestCase):
+
+    def test_can_adhere_to_HasContingency_protocol(self):
+        contingency = Contingency(retry_policy_provider=retry_policy_provider)
+        self.assertIsInstance(contingency, HasContingency)
+
+    def test_cannot_adhere_to_HasContingency_protocol(self):
+        contingency = Contingency()
+        self.assertNotIsInstance(contingency, HasContingency)

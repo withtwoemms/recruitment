@@ -50,15 +50,14 @@ class AgentTest(TestCase):
     def publisher_provider(
         self, commlink: Commlink,
         retry_policy_provider: Optional[
-            Callable[[Action], RetryPolicy]
+            Callable[[Action, Optional[Reaction]], RetryPolicy]
         ] = lambda action: retry_policy_provider(action)
-    ):
-        return Publisher(
-            coordinator=Coordinator(
-                commlink=commlink,
-                contingency=Contingency(retry_policy_provider=retry_policy_provider)
-            )
-        )
+    ) -> Publisher:
+        if retry_policy_provider is False:
+            contingency = retry_policy_provider
+        else:
+            contingency = Contingency(retry_policy_provider=retry_policy_provider)
+        return Publisher(coordinator=Coordinator(commlink=commlink, contingency=contingency))
 
     def consumer_provider(
         self, commlink: Commlink,
@@ -66,12 +65,11 @@ class AgentTest(TestCase):
             Callable[[Action, Optional[Reaction]], RetryPolicy]
         ] = lambda action: retry_policy_provider(action)
     ) -> Consumer:
-        return Consumer(
-            coordinator=Coordinator(
-                commlink=commlink,
-                contingency=Contingency(retry_policy_provider=retry_policy_provider)
-            )
-        )
+        if retry_policy_provider is False:
+            contingency = retry_policy_provider
+        else:
+            contingency = Contingency(retry_policy_provider=retry_policy_provider)
+        return Consumer(Coordinator(commlink=commlink, contingency=contingency))
 
     def commlink_provider(self, broker: Broker):
         return Commlink(Config(broker, **fake_credentials))
@@ -82,6 +80,47 @@ class AgentTest(TestCase):
             return self.sns
         if service_name == 'logs':
             return self.logs
+
+    @patch('boto3.client')
+    def test_can_proceed_without_contingency(self, mock_boto_client):
+        mock_boto_client.side_effect = self.client_selector
+        with Stubber(self.logs) as logs_stubber, \
+             Stubber(self.sns) as sns_stubber:
+            sns_stubber.add_client_error(Broker.sns.interface['send'], '500')
+            logs_stubber.add_client_error(Broker.logs.interface['receive'], '500')  # retry 2
+            smith = Agent(
+                consumer=self.consumer_provider(
+                    commlink=self.commlink_provider(Broker.logs),
+                    retry_policy_provider=False
+                ),
+                publisher=self.publisher_provider(
+                    commlink=self.commlink_provider(Broker.sns),
+                    retry_policy_provider=False
+                ),
+            )
+            consume_result = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
+            publish_result = smith.publish(Message='Mr. Anderson...')
+
+        self.assertFalse(consume_result.successful)
+        self.assertIsInstance(consume_result.value, ClientError)
+
+        self.assertFalse(publish_result.successful)
+        self.assertIsInstance(publish_result.value, ClientError)
+
+    @patch('boto3.client')
+    def test_cannot_instantiate_agent_given_invalid_suboordinates(self, mock_boto_client):
+        valid_consumer = self.consumer_provider(
+            commlink=self.commlink_provider(Broker.logs),
+            retry_policy_provider=False
+        )
+        valid_publisher = self.publisher_provider(
+            commlink=self.commlink_provider(Broker.sns),
+            retry_policy_provider=False
+        )
+        with self.assertRaises(TypeError):
+            Agent(consumer='Invalid Suboordinate.', publisher=valid_publisher)
+        with self.assertRaises(TypeError):
+            Agent(consumer=valid_consumer, publisher='Invalid Suboordinate.')
 
     @patch('boto3.client')
     @patch('actionpack.actions.Write.perform')
