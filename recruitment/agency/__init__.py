@@ -14,7 +14,6 @@ from typing import Optional
 from typing import Union
 
 from recruitment.agency.protocols import HasContingency
-from recruitment.agency.resources import Append
 from recruitment.agency.resources import Broker
 from recruitment.agency.resources import CloudProvider
 from recruitment.agency.resources import From
