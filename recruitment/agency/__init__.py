@@ -185,9 +185,9 @@ class Agent:
 
     def __init__(self, consumer: Consumer, publisher: Publisher):
         if not isinstance(consumer, Consumer):
-            raise TypeError(f'{self.__name__} consumer must be of type {Consumer.__name__} not {type(consumer).__name__}')
+            raise TypeError(f'{self.__class__.__name__} consumer must be of type {Consumer.__name__} not {type(consumer).__name__}')
         if not isinstance(publisher, Publisher):
-            raise TypeError(f'{self.__name__} publisher must be of type {Publisher.__name__} not {type(publisher).__name__}')
+            raise TypeError(f'{self.__class__.__name__} publisher must be of type {Publisher.__name__} not {type(publisher).__name__}')
 
         setattr(self, consumer.consume.__name__, consumer.consume)
         setattr(self, publisher.publish.__name__, publisher.publish)
