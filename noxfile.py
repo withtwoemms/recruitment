@@ -17,7 +17,6 @@ USEVENV = envvar.get('USEVENV', False)
 
 external = False if USEVENV else True
 supported_python_versions = [
-    '3.7',
     '3.8',
     '3.9',
     '3.10',
