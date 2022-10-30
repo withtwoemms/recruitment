@@ -89,7 +89,7 @@ def test(session):
         session.run(
             'python', '-m',
             'coverage', 'run', '--source', '.', '--branch',
-            '--omit', '**tests/*,**/__*__.py,noxfile.py,setup.py',
+            '--omit', '**tests/*,**/site-packages/*.py,noxfile.py,setup.py',
             '-m', 'unittest', TESTNAME if TESTNAME else f'discover',
             external=external
         )
