@@ -11,8 +11,8 @@ from tests.recruitment.agency import client
 from tests.recruitment.agency import raise_this
 from recruitment.agency import Broker
 from recruitment.agency import Config
-from recruitment.agency import Communicator
-from recruitment.agency.temp import Communicator as FakeCommunicator
+from recruitment.agency import Commlink
+from recruitment.agency.temp import Commlink as FakeCommunicator
 
 
 class CommunicatorTest(TestCase):
@@ -20,12 +20,12 @@ class CommunicatorTest(TestCase):
     @patch('boto3.client')
     def test_cannot_instantiate_with_invalid_Config(self, mock_boto_client):
         mock_boto_client.side_effect = raise_this(exception=ValueError)
-        with self.assertRaises(Communicator.FailedToInstantiate):
-            Communicator(config=Config(Broker.sns))
+        with self.assertRaises(Commlink.FailedToInstantiate):
+            Commlink(config=Config(Broker.sns))
 
         mock_boto_client.side_effect = raise_this(exception=NoRegionError)
-        with self.assertRaises(Communicator.FailedToInstantiate):
-            Communicator(config=Config(Broker.sns))
+        with self.assertRaises(Commlink.FailedToInstantiate):
+            Commlink(config=Config(Broker.sns))
 
     @patch('boto3.client')
     def test_communicator_instantiation_failure_redacts_secrets(self, mock_boto_client):
@@ -39,8 +39,8 @@ class CommunicatorTest(TestCase):
         )
 
         mock_boto_client.side_effect = raise_this(exception=ValueError)
-        with self.assertRaises(Communicator.FailedToInstantiate) as error_ctx:
-            Communicator(config=Config(Broker.sns))
+        with self.assertRaises(Commlink.FailedToInstantiate) as error_ctx:
+            Commlink(config=Config(Broker.sns))
 
         self.assertEqual(str(error_ctx.exception), expected_serialization)
 
@@ -65,7 +65,7 @@ class CommunicatorTest(TestCase):
             )
             stubber.add_response(broker.interface['send'], expected_publish_response)
 
-            commlink = Communicator(Config(broker, **fake_credentials))
+            commlink = Commlink(Config(broker, **fake_credentials))
             topic_creation = commlink.declare_receiver(
                 Name='string',
                 Attributes={'string': 'string'},
@@ -113,7 +113,7 @@ class CommunicatorTest(TestCase):
                 broker.interface['receive'], expected_response
             )
 
-            commlink = Communicator(Config(broker, **fake_credentials))
+            commlink = Commlink(Config(broker, **fake_credentials))
             message_receipt = commlink.receive(logGroupName='someLogGroupName', logStreamName='someLogStreamName')
 
         self.assertEqual(message_receipt, expected_response)

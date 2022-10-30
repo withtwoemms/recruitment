@@ -1,22 +1,24 @@
-from datetime import datetime
 from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
 from actionpack.actions import Call
 from actionpack.actions import RetryPolicy
-from actionpack.actions import Write
 from actionpack.utils import Closure
 from botocore.exceptions import ClientError
 from botocore.stub import Stubber
 
+from recruitment.agency import Contingency
+from recruitment.agency import Broker
+from recruitment.agency import Commlink
+from recruitment.agency import Coordinator
+from recruitment.agency import Config
+from recruitment.agency import Publisher
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
+from tests.recruitment.agency import retry_policy_provider
 from tests.recruitment.agency import uncloseable
-from recruitment.agency import Publisher
-from recruitment.agency import Broker
-from recruitment.agency import Config
-from recruitment.agency import deadletters
+from tests.recruitment.agency import write_to_deadletter_file
 
 
 class PublisherTest(TestCase):
@@ -24,15 +26,8 @@ class PublisherTest(TestCase):
     broker = Broker.sns
     region = 'some-region-1'
     sns = client(broker.name, region)
-    expected_publish_response = {'MessageId': '00000000-0000-0000-0000-000000000000'}
 
-    write_to_deadletter_file = Write(
-        prefix=f'-> [{datetime.utcnow()}] -- ',
-        filename=deadletters / 'PublisherTest.failures',
-        to_write='failed',
-        append=True,
-        mkdir=True,
-    )
+    expected_publish_response = {'MessageId': '00000000-0000-0000-0000-000000000000'}
 
     @patch('boto3.client')
     @patch('actionpack.actions.Write.perform')
@@ -43,10 +38,12 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 1
             stubber.add_client_error(self.broker.interface['send'], '500')  # retry 2
             publisher = Publisher(
-                config=Config(self.broker, **fake_credentials),
-                retry_policy_provider=lambda action: RetryPolicy(
-                    action, max_retries=2, should_record=True
-                ),
+                coordinator=Coordinator(
+                    commlink=Commlink(Config(self.broker, **fake_credentials)),
+                    contingency=Contingency(
+                        retry_policy_provider=retry_policy_provider
+                    )
+                )
             )
             result, attempts = publisher.publish(Message='Some message...')
 
@@ -67,14 +64,19 @@ class PublisherTest(TestCase):
                 self.broker.interface['send'], self.expected_publish_response
             )
             publisher = Publisher(
-                config=Config(self.broker, **fake_credentials),
-                retry_policy_provider=lambda action: retry_policy_provider(action),
+                coordinator=Coordinator(
+                    commlink=Commlink(Config(self.broker, **fake_credentials)),
+                    contingency=Contingency(
+                        retry_policy_provider=retry_policy_provider
+                    )
+                )
             )
             result, attempts = publisher.publish(Message='Some message...')
 
         self.assertTrue(result.successful)
         self.assertEqual(result.value, self.expected_publish_response)
-        self.assertEqual(len(attempts), 2)
+        self.assertEqual(len(attempts), 3)
+        self.assertIsInstance(attempts.pop().value, type(self.expected_publish_response))
         for attempt in attempts:
             self.assertIsInstance(attempt.value, ClientError)
 
@@ -97,11 +99,15 @@ class PublisherTest(TestCase):
             stubber.add_client_error(self.broker.interface['send'], '500')
             stubber.add_client_error(self.broker.interface['send'], '500')
             publisher = Publisher(
-                config=Config(self.broker, **fake_credentials),
-                retry_policy_provider=lambda action: retry_policy_provider(
-                    action,
-                    reaction=callback,  # called if the RetryPolicy expires
-                ),
+                coordinator=Coordinator(
+                    commlink=Commlink(Config(self.broker, **fake_credentials)),
+                    contingency=Contingency(
+                        retry_policy_provider=lambda action: retry_policy_provider(
+                            action,
+                            reaction=callback,  # called if the RetryPolicy expires
+                        )
+                    )
+                )
             )
             result, attempts = publisher.publish(Message='Some message...')
 
@@ -124,9 +130,15 @@ class PublisherTest(TestCase):
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 stubber.add_client_error(self.broker.interface['send'], '500')
                 publisher = Publisher(
-                    config=Config(self.broker, **fake_credentials),
-                    retry_policy_provider=lambda action: retry_policy_provider(action),
-                    record_failure_provider=lambda: self.write_to_deadletter_file,
+                    coordinator=Coordinator(
+                        commlink=Commlink(Config(self.broker, **fake_credentials)),
+                        contingency=Contingency(
+                            retry_policy_provider=lambda action: retry_policy_provider(
+                                action=action,
+                                reaction=write_to_deadletter_file
+                            ),
+                        )
+                    )
                 )
                 result, attempts = publisher.publish(Message='Some message...')
 
@@ -139,9 +151,3 @@ class PublisherTest(TestCase):
         self.assertEqual(len(attempts), 3)
         for attempt in attempts:
             self.assertIsInstance(attempt.value, ClientError)
-
-
-def retry_policy_provider(action, max_retries=2, reaction=None) -> RetryPolicy:
-    return RetryPolicy(
-        action, reaction=reaction, max_retries=max_retries, should_record=True
-    )

@@ -1,3 +1,6 @@
+from actionpack.actions import RetryPolicy
+from actionpack.actions import Write
+from actionpack import partialaction
 from enum import auto
 from enum import Enum
 from typing import Dict
@@ -40,4 +43,9 @@ class From(NaturalEnum):
 
 class CloudProvider(NaturalEnum):
     AWS = auto()
+
+
+#- Custom Actions ---------------------------->>>
+Append = partialaction('Append', Write, append=True)
+RecordedRetryPolicy = partialaction('RecordedRetryPolicy', RetryPolicy, should_record=True)
     

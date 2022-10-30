@@ -1,4 +1,7 @@
+from actionpack.actions import RetryPolicy
+from actionpack.actions import Write
 from contextlib import contextmanager
+from datetime import datetime
 from io import IOBase as Buffer
 
 from botocore.session import get_session
@@ -18,9 +21,20 @@ fake_credentials = {
     'endpoint_url': 'some-computer.com',
 }
 
+write_to_deadletter_file = Write(
+    prefix=f'-> [{datetime.utcnow()}] -- ',
+    filename='some.file',
+    to_write='failed',
+    append=True,
+    mkdir=True,
+)
+
 
 def client(client_type: str, region_name: str):
-    return get_session().create_client(client_type, region_name=region_name)
+    return get_session().create_client(
+        client_type,
+        region_name=region_name,
+    )
 
 
 def raise_this(**kwargs):
@@ -38,3 +52,8 @@ def uncloseable(buffer: Buffer):
     yield buffer
     buffer.close = close
     buffer.seek(0)  # fake close
+
+def retry_policy_provider(action, reaction=None, max_retries=2) -> RetryPolicy:
+    return RetryPolicy(
+        action, reaction=reaction, max_retries=max_retries, should_record=True
+    )

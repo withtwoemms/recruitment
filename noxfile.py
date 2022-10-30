@@ -73,6 +73,11 @@ def install(session):
         'pip', '--disable-pip-version-check', 'install', '.',
         external=external
     )
+    session.run(
+        'python', '-m',
+        'pip', '--disable-pip-version-check', 'install', '-r', 'requirements.txt',
+        external=external
+    )
 
 
 @nox.session(name=session_name('test'), python=supported_python_versions)
@@ -80,13 +85,11 @@ def test(session):
     if USEVENV:
         install(session)
 
-    session.run('pip', 'install', '--quiet', '-r', 'requirements.test.txt')
-
     if COVERAGE:
         session.run(
             'python', '-m',
             'coverage', 'run', '--source', '.', '--branch',
-            '--omit', '**tests/*,noxfile.py,setup.py',
+            '--omit', '**tests/*,**/site-packages/*.py,noxfile.py,setup.py',
             '-m', 'unittest', TESTNAME if TESTNAME else f'discover',
             external=external
         )
