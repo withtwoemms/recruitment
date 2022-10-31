@@ -154,25 +154,26 @@ class Coordinator:
             return action.perform()
 
 
-class Publisher:
-    """A namespace for publishing messages"""
+class Job:
 
     def __init__(self, coordinator: Coordinator):
         self.coordinator = coordinator
+
+    def create_target(self, *args, **kwargs):
+        create_target = Call(Closure(self.coordinator.commlink.create_target, *args, **kwargs))
+        return self.coordinator.do(create_target)
+
+
+class Publisher(Job):
+    """A namespace for publishing messages"""
 
     def publish(self, *args, **kwargs):
         send_communique = Call(Closure(self.coordinator.commlink.send, *args, **kwargs))
         return self.coordinator.do(send_communique)
 
 
-class Consumer:
-    """A namespace for consuming messages
-
-    TODO (withtwoemms) -- add error logfile header for simpler parsing
-    """
-
-    def __init__(self, coordinator: Coordinator):
-        self.coordinator = coordinator
+class Consumer(Job):
+    """A namespace for consuming messages"""
 
     def consume(self, *args, **kwargs):
         receive_communique = Call(Closure(self.coordinator.commlink.receive, *args, **kwargs))
