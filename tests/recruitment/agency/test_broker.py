@@ -6,7 +6,7 @@ from tests.recruitment.agency import acceptable_broker_names
 
 class BrokerTest(TestCase):
 
-    broker_interface_method_names = {'send', 'declare_receiver'}
+    broker_interface_method_names = {'receive', 'create_target', 'send'}
 
     def test_cannot_instantiate_invalid_Broker(self):
         with self.assertRaises(ValueError):
@@ -20,6 +20,6 @@ class BrokerTest(TestCase):
 
     def test_brokers_have_defined_interfaces(self):
         for broker in [Broker(name) for name in acceptable_broker_names]:
-            self.assertSetEqual(
-                set(broker.interface.keys()), self.broker_interface_method_names
+            self.assertTrue(
+                set(broker.interface.keys()).issubset(self.broker_interface_method_names)
             )

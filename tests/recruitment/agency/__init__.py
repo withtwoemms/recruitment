@@ -8,6 +8,7 @@ from botocore.session import get_session
 
 
 acceptable_broker_names = (
+    'logs',
     'kinesis',
     's3',
     'sns',
