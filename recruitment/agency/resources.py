@@ -24,16 +24,20 @@ class Broker(NaturalEnum):
     @property
     def interface(self) -> Dict[str, Optional[str]]:
         send = 'send'
-        declare_receiver = 'declare_receiver'
+        create_target = 'create_target'
         receive = 'receive'
         methods_for = {
             Broker.logs: {receive: 'get_log_events'},
-            Broker.s3: {send: 'upload_fileobj', declare_receiver: 'create_bucket'},
-            Broker.sns: {send: 'publish', declare_receiver: 'create_topic'},
-            Broker.sqs: {send: 'send_message', declare_receiver: 'create_queue'},
-            Broker.kinesis: {send: 'put_record', declare_receiver: 'create_stream'},
+            Broker.s3: {
+                create_target: 'create_bucket',
+                receive: 'get_object',
+                send: 'upload_fileobj',
+            },
+            Broker.sns: {send: 'publish', create_target: 'create_topic'},
+            Broker.sqs: {send: 'send_message', create_target: 'create_queue'},
+            Broker.kinesis: {send: 'put_record', create_target: 'create_stream'},
         }
-        return methods_for[self]
+        return methods_for[self]  # KeyError should be contextualized as NotImplementedError
 
 
 class From(NaturalEnum):
