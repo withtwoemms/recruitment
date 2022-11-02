@@ -1,6 +1,7 @@
 import boto3
 
 from actionpack import Action
+from actionpack.action import Result
 from actionpack.actions import Call
 from actionpack.utils import Closure
 from botocore.exceptions import NoRegionError
@@ -9,17 +10,17 @@ from dataclasses import dataclass
 from functools import reduce
 from os import environ as envvars
 from pathlib import Path
-from typing import Callable
 from typing import Optional
+from typing import TypeVar
 from typing import Union
 
-from recruitment.agency.protocols import HasContingency
 from recruitment.agency.resources import Broker
 from recruitment.agency.resources import CloudProvider
 from recruitment.agency.resources import From
 from recruitment.agency.resources import RecordedRetryPolicy
 
 
+T = TypeVar('T')
 Reaction = Action
 
 local_storage_dir = Path.home() / '.recruitment/agency/'
@@ -94,8 +95,8 @@ class Commlink:
     """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
-        broker = Broker(config.service_name)  # maybe redundant
-        for alias, method in broker.interface.items():
+        self.broker = Broker(config.service_name)  # maybe redundant
+        for alias, method in self.broker.interface.items():
             try:
                 client = boto3.client(
                     service_name=config.service_name,
@@ -123,12 +124,30 @@ class Commlink:
 
 class Contingency:
 
-    def __init__(
+    def __new__(cls, *args, **kwargs) -> T:
+        max_retries_param_name = 'max_retries'
+        max_retries = kwargs.get(max_retries_param_name)
+        if max_retries:
+            instance =super().__new__(cls)
+            setattr(instance, max_retries_param_name, max_retries)
+            return instance
+        else:
+            return cls.__call__(cls, *args, **kwargs)
+
+    def __call__(
         self,
-        retry_policy_provider: Optional[Callable[[Action, Optional[Reaction]], RecordedRetryPolicy]] = None
-    ):
-        if retry_policy_provider:
-            self.retry_policy_provider = retry_policy_provider
+        action: Action,
+        reaction: Optional[Reaction] = None,
+    ) -> RecordedRetryPolicy:
+        try:
+            max_retries = self.max_retries
+        except AttributeError:
+            max_retries
+        return RecordedRetryPolicy(
+            action=action,
+            reaction=reaction,
+            max_retries=max_retries
+        )
 
 
 class Coordinator:
@@ -139,17 +158,12 @@ class Coordinator:
         contingency: Optional[Contingency] = None
     ):
         self.commlink = commlink
-        if contingency:
-            self.retry_policy_provider = contingency.retry_policy_provider
+        self.contingency = contingency
 
-    @property
-    def has_contingency(self) -> bool:
-        return isinstance(self, HasContingency)
-
-    def do(self, action: Action, reaction: Optional[Reaction] = None):
-        if self.has_contingency:
-            retry_policy = self.retry_policy_provider(action, reaction) if reaction else self.retry_policy_provider(action)
-            return retry_policy.perform(), retry_policy.attempts  # Effort type
+    def do(self, action: Action, reaction: Optional[Reaction] = None) -> Result[T]:
+        if self.contingency:
+            retry_policy = self.contingency(action=action, reaction=reaction)
+            return retry_policy.perform(), retry_policy.attempts
         else:
             return action.perform()
 
@@ -162,6 +176,13 @@ class Job:
     def create_target(self, *args, **kwargs):
         create_target = Call(Closure(self.coordinator.commlink.create_target, *args, **kwargs))
         return self.coordinator.do(create_target)
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        broker = self.coordinator.commlink.broker.name
+        has_contingency = ':contingency' if self.coordinator.contingency else ''
+
+        return f'<{name}:{broker}{has_contingency}>'
 
 
 class Publisher(Job):
@@ -191,3 +212,10 @@ class Agent:
 
         setattr(self, consumer.consume.__name__, consumer.consume)
         setattr(self, publisher.publish.__name__, publisher.publish)
+
+        consumer_repr = repr(consumer).strip('<>')
+        publisher_repr = repr(publisher).strip('<>')
+        self.__repr = f'<{self.__class__.__name__}|{consumer_repr}|{publisher_repr}>'
+
+    def __repr__(self) -> str:
+        return self.__repr
