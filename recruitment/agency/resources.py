@@ -34,7 +34,11 @@ class Broker(NaturalEnum):
                 send: 'upload_fileobj',
             },
             Broker.sns: {send: 'publish', create_target: 'create_topic'},
-            Broker.sqs: {send: 'send_message', create_target: 'create_queue'},
+            Broker.sqs: {
+                create_target: 'create_queue',
+                receive: 'receive_message',
+                send: 'send_message',
+            },
             Broker.kinesis: {send: 'put_record', create_target: 'create_stream'},
         }
         return methods_for[self]  # KeyError should be contextualized as NotImplementedError
