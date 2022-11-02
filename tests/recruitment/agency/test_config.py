@@ -11,7 +11,7 @@ from recruitment.agency import Config
 
 class ConfigTest(TestCase):
 
-    broker_name = acceptable_broker_names[0]  # kinesis
+    broker_name = acceptable_broker_names[0]  # logs
     expected_serialization = dedent(
         f"""\
         service_name={broker_name}
@@ -91,7 +91,7 @@ class ConfigTest(TestCase):
         clear=True
     )
     def test_can_supplement_Config_instance_from_environment(self):
-        some_service_name = 'logs'
+        some_service_name = 'kinesis'
         self.assertNotEqual(self.broker_name, some_service_name)
         config = Config(service_name=some_service_name)
         self.assertEqual(config.service_name, some_service_name)

@@ -61,12 +61,12 @@ class CommunicatorTest(TestCase):
         mock_boto_client.return_value = sns
         with Stubber(sns) as stubber:
             stubber.add_response(
-                broker.interface['declare_receiver'], expected_topic_response
+                broker.interface['create_target'], expected_topic_response
             )
             stubber.add_response(broker.interface['send'], expected_publish_response)
 
             commlink = Commlink(Config(broker, **fake_credentials))
-            topic_creation = commlink.declare_receiver(
+            topic_creation = commlink.create_target(
                 Name='string',
                 Attributes={'string': 'string'},
                 Tags=[

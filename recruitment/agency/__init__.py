@@ -1,6 +1,7 @@
 import boto3
 
 from actionpack import Action
+from actionpack.action import Result
 from actionpack.actions import Call
 from actionpack.utils import Closure
 from botocore.exceptions import NoRegionError
@@ -9,17 +10,17 @@ from dataclasses import dataclass
 from functools import reduce
 from os import environ as envvars
 from pathlib import Path
-from typing import Callable
 from typing import Optional
+from typing import TypeVar
 from typing import Union
 
-from recruitment.agency.protocols import HasContingency
 from recruitment.agency.resources import Broker
 from recruitment.agency.resources import CloudProvider
 from recruitment.agency.resources import From
 from recruitment.agency.resources import RecordedRetryPolicy
 
 
+T = TypeVar('T')
 Reaction = Action
 
 local_storage_dir = Path.home() / '.recruitment/agency/'
@@ -94,8 +95,8 @@ class Commlink:
     """An object that hosts the Broker.interface"""
 
     def __init__(self, config: Config):
-        broker = Broker(config.service_name)  # maybe redundant
-        for alias, method in broker.interface.items():
+        self.broker = Broker(config.service_name)  # maybe redundant
+        for alias, method in self.broker.interface.items():
             try:
                 client = boto3.client(
                     service_name=config.service_name,
@@ -123,12 +124,29 @@ class Commlink:
 
 class Contingency:
 
-    def __init__(
+    def __new__(cls, *args, **kwargs) -> T:
+        instance = super().__new__(cls)
+        param_names, assigned_param_names = ['reaction', 'max_retries'], []
+        for param_name in param_names:
+            param_value = kwargs.get(param_name)
+            if param_value:
+                assigned_param_names.append(param_name)
+                setattr(instance, param_name, param_value)
+
+        if not any(assigned_param_names):
+            return cls.__call__(cls, *args, **kwargs)
+        else:
+            return instance
+
+    def __call__(
         self,
-        retry_policy_provider: Optional[Callable[[Action, Optional[Reaction]], RecordedRetryPolicy]] = None
-    ):
-        if retry_policy_provider:
-            self.retry_policy_provider = retry_policy_provider
+        action: Action,
+    ) -> RecordedRetryPolicy:
+        return RecordedRetryPolicy(
+            action=action,
+            reaction=self.reaction if hasattr(self, 'reaction') else None,
+            max_retries=self.max_retries if hasattr(self, 'max_retries') else 2  # retries
+        )
 
 
 class Coordinator:
@@ -139,40 +157,43 @@ class Coordinator:
         contingency: Optional[Contingency] = None
     ):
         self.commlink = commlink
-        if contingency:
-            self.retry_policy_provider = contingency.retry_policy_provider
+        self.contingency = contingency
 
-    @property
-    def has_contingency(self) -> bool:
-        return isinstance(self, HasContingency)
-
-    def do(self, action: Action, reaction: Optional[Reaction] = None):
-        if self.has_contingency:
-            retry_policy = self.retry_policy_provider(action, reaction) if reaction else self.retry_policy_provider(action)
-            return retry_policy.perform(), retry_policy.attempts  # Effort type
+    def do(self, action: Action) -> Result[T]:
+        if self.contingency:
+            retry_policy = self.contingency(action=action)
+            return retry_policy.perform(), retry_policy.attempts
         else:
             return action.perform()
 
 
-class Publisher:
-    """A namespace for publishing messages"""
+class Job:
 
     def __init__(self, coordinator: Coordinator):
         self.coordinator = coordinator
+
+    def create_target(self, *args, **kwargs):
+        create_target = Call(Closure(self.coordinator.commlink.create_target, *args, **kwargs))
+        return self.coordinator.do(create_target)
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        broker = self.coordinator.commlink.broker.name
+        has_contingency = ':contingency' if self.coordinator.contingency else ''
+
+        return f'<{name}:{broker}{has_contingency}>'
+
+
+class Publisher(Job):
+    """A namespace for publishing messages"""
 
     def publish(self, *args, **kwargs):
         send_communique = Call(Closure(self.coordinator.commlink.send, *args, **kwargs))
         return self.coordinator.do(send_communique)
 
 
-class Consumer:
-    """A namespace for consuming messages
-
-    TODO (withtwoemms) -- add error logfile header for simpler parsing
-    """
-
-    def __init__(self, coordinator: Coordinator):
-        self.coordinator = coordinator
+class Consumer(Job):
+    """A namespace for consuming messages"""
 
     def consume(self, *args, **kwargs):
         receive_communique = Call(Closure(self.coordinator.commlink.receive, *args, **kwargs))
@@ -190,3 +211,10 @@ class Agent:
 
         setattr(self, consumer.consume.__name__, consumer.consume)
         setattr(self, publisher.publish.__name__, publisher.publish)
+
+        consumer_repr = repr(consumer).strip('<>')
+        publisher_repr = repr(publisher).strip('<>')
+        self.__repr = f'<{self.__class__.__name__}|{consumer_repr}|{publisher_repr}>'
+
+    def __repr__(self) -> str:
+        return self.__repr

@@ -22,7 +22,6 @@ from recruitment.agency import Publisher
 from recruitment.agency import Reaction
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
-from tests.recruitment.agency import retry_policy_provider
 from tests.recruitment.agency import uncloseable
 from tests.recruitment.agency import write_to_deadletter_file
 
@@ -47,28 +46,10 @@ class AgentTest(TestCase):
         'nextBackwardToken': 'string'
     }
 
-    def publisher_provider(
-        self, commlink: Commlink,
-        retry_policy_provider: Optional[
-            Callable[[Action, Optional[Reaction]], RetryPolicy]
-        ] = lambda action: retry_policy_provider(action)
-    ) -> Publisher:
-        if retry_policy_provider is False:
-            contingency = retry_policy_provider
-        else:
-            contingency = Contingency(retry_policy_provider=retry_policy_provider)
-        return Publisher(coordinator=Coordinator(commlink=commlink, contingency=contingency))
+    def publisher_provider(self, commlink: Commlink, contingency: Optional[Contingency] = None) -> Publisher:
+        return Publisher(Coordinator(commlink=commlink, contingency=contingency))
 
-    def consumer_provider(
-        self, commlink: Commlink,
-        retry_policy_provider: Optional[
-            Callable[[Action, Optional[Reaction]], RetryPolicy]
-        ] = lambda action: retry_policy_provider(action)
-    ) -> Consumer:
-        if retry_policy_provider is False:
-            contingency = retry_policy_provider
-        else:
-            contingency = Contingency(retry_policy_provider=retry_policy_provider)
+    def consumer_provider(self, commlink: Commlink, contingency: Optional[Contingency] = None) -> Consumer:
         return Consumer(Coordinator(commlink=commlink, contingency=contingency))
 
     def commlink_provider(self, broker: Broker):
@@ -89,14 +70,8 @@ class AgentTest(TestCase):
             sns_stubber.add_client_error(Broker.sns.interface['send'], '500')
             logs_stubber.add_client_error(Broker.logs.interface['receive'], '500')  # retry 2
             smith = Agent(
-                consumer=self.consumer_provider(
-                    commlink=self.commlink_provider(Broker.logs),
-                    retry_policy_provider=False
-                ),
-                publisher=self.publisher_provider(
-                    commlink=self.commlink_provider(Broker.sns),
-                    retry_policy_provider=False
-                ),
+                consumer=self.consumer_provider(commlink=self.commlink_provider(Broker.logs)),
+                publisher=self.publisher_provider(commlink=self.commlink_provider(Broker.sns))
             )
             consume_result = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
             publish_result = smith.publish(Message='Mr. Anderson...')
@@ -109,14 +84,8 @@ class AgentTest(TestCase):
 
     @patch('boto3.client')
     def test_cannot_instantiate_agent_given_invalid_suboordinates(self, mock_boto_client):
-        valid_consumer = self.consumer_provider(
-            commlink=self.commlink_provider(Broker.logs),
-            retry_policy_provider=False
-        )
-        valid_publisher = self.publisher_provider(
-            commlink=self.commlink_provider(Broker.sns),
-            retry_policy_provider=False
-        )
+        valid_consumer = self.consumer_provider(commlink=self.commlink_provider(Broker.logs))
+        valid_publisher = self.publisher_provider(commlink=self.commlink_provider(Broker.sns))
         with self.assertRaises(TypeError):
             Agent(consumer='Invalid Suboordinate.', publisher=valid_publisher)
         with self.assertRaises(TypeError):
@@ -135,8 +104,14 @@ class AgentTest(TestCase):
             logs_stubber.add_client_error(Broker.logs.interface['receive'], '500')  # retry 1
             logs_stubber.add_client_error(Broker.logs.interface['receive'], '500')  # retry 2
             smith = Agent(
-                consumer=self.consumer_provider(self.commlink_provider(Broker.logs)),
-                publisher=self.publisher_provider(self.commlink_provider(Broker.sns))
+                consumer=self.consumer_provider(
+                    commlink=self.commlink_provider(Broker.logs),
+                    contingency=Contingency
+                ),
+                publisher=self.publisher_provider(
+                    commlink=self.commlink_provider(Broker.sns),
+                    contingency=Contingency
+                )
             )
             publish_result, publish_attempts = smith.publish(Message='Mr. Anderson...')
             consume_result, consume_attempts = smith.consume(logGroupName='the construct', logStreamName='the-training-program')
@@ -168,9 +143,12 @@ class AgentTest(TestCase):
             smith = Agent(
                 consumer=self.consumer_provider(
                     commlink=self.commlink_provider(Broker.logs),
-                    retry_policy_provider=lambda action: retry_policy_provider(action=action, max_retries=consumer_max_retries)
+                    contingency=Contingency(max_retries=consumer_max_retries)
                 ),
-                publisher=self.publisher_provider(self.commlink_provider(Broker.sns))
+                publisher=self.publisher_provider(
+                    commlink=self.commlink_provider(Broker.sns),
+                    contingency=Contingency
+                )
             )
             publish_result, publish_attempts = smith.publish(Message='Mr. Anderson...')
             consume_result, consume_attempts = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
@@ -209,14 +187,16 @@ class AgentTest(TestCase):
             [sns_stubber.add_client_error(Broker.sns.interface['send'], '500') for _ in range(publisher_max_retries + 1)]
             [logs_stubber.add_client_error(Broker.logs.interface['receive'], '500') for _ in range(consumer_max_retries + 1)]
             smith = Agent(
-                publisher=self.publisher_provider(self.commlink_provider(Broker.sns)),
                 consumer=self.consumer_provider(
                     commlink=self.commlink_provider(Broker.logs),
-                    retry_policy_provider=lambda action: retry_policy_provider(
-                        action=action,
+                    contingency=Contingency(
                         reaction=callback,  # called if the RetryPolicy fails for any reason
-                        max_retries=consumer_max_retries,
+                        max_retries=consumer_max_retries
                     )
+                ),
+                publisher=self.publisher_provider(
+                    commlink=self.commlink_provider(Broker.sns),
+                    contingency=Contingency
                 )
             )
             publish_result, publish_attempts = smith.publish(Message='Mr. Anderson...')
@@ -224,7 +204,7 @@ class AgentTest(TestCase):
 
         self.assertFalse(publish_result.successful)
         self.assertIsInstance(publish_result.value, RetryPolicy.Expired)
-        self.assertEqual(len(publish_attempts), 3)
+        self.assertEqual(len(publish_attempts), publisher_max_retries + 1)
         for attempt in publish_attempts:
             self.assertIsInstance(attempt.value, ClientError)
 
@@ -251,11 +231,8 @@ class AgentTest(TestCase):
                     consumer=self.consumer_provider(self.commlink_provider(Broker.logs)),
                     publisher=self.publisher_provider(
                         commlink=self.commlink_provider(Broker.sns),
-                        retry_policy_provider=lambda action: retry_policy_provider(
-                            action=action,
-                            reaction=write_to_deadletter_file
-                        )
-                    ),
+                        contingency=Contingency(reaction=write_to_deadletter_file)
+                    )
                 )
                 result, attempts = smith.publish(Message='Mr. Anderson...')
 
