@@ -125,28 +125,27 @@ class Commlink:
 class Contingency:
 
     def __new__(cls, *args, **kwargs) -> T:
-        max_retries_param_name = 'max_retries'
-        max_retries = kwargs.get(max_retries_param_name)
-        if max_retries:
-            instance =super().__new__(cls)
-            setattr(instance, max_retries_param_name, max_retries)
-            return instance
-        else:
+        instance = super().__new__(cls)
+        param_names, assigned_param_names = ['reaction', 'max_retries'], []
+        for param_name in param_names:
+            param_value = kwargs.get(param_name)
+            if param_value:
+                assigned_param_names.append(param_name)
+                setattr(instance, param_name, param_value)
+
+        if not any(assigned_param_names):
             return cls.__call__(cls, *args, **kwargs)
+        else:
+            return instance
 
     def __call__(
         self,
         action: Action,
-        reaction: Optional[Reaction] = None,
     ) -> RecordedRetryPolicy:
-        try:
-            max_retries = self.max_retries
-        except AttributeError:
-            max_retries
         return RecordedRetryPolicy(
             action=action,
-            reaction=reaction,
-            max_retries=max_retries
+            reaction=self.reaction if hasattr(self, 'reaction') else None,
+            max_retries=self.max_retries if hasattr(self, 'max_retries') else 2  # retries
         )
 
 
@@ -160,9 +159,9 @@ class Coordinator:
         self.commlink = commlink
         self.contingency = contingency
 
-    def do(self, action: Action, reaction: Optional[Reaction] = None) -> Result[T]:
+    def do(self, action: Action) -> Result[T]:
         if self.contingency:
-            retry_policy = self.contingency(action=action, reaction=reaction)
+            retry_policy = self.contingency(action=action)
             return retry_policy.perform(), retry_policy.attempts
         else:
             return action.perform()
