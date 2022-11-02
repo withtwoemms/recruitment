@@ -16,7 +16,6 @@ from recruitment.agency import Config
 from recruitment.agency import Publisher
 from tests.recruitment.agency import client
 from tests.recruitment.agency import fake_credentials
-from tests.recruitment.agency import retry_policy_provider
 from tests.recruitment.agency import uncloseable
 from tests.recruitment.agency import write_to_deadletter_file
 
@@ -40,9 +39,7 @@ class PublisherTest(TestCase):
             publisher = Publisher(
                 coordinator=Coordinator(
                     commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    contingency=Contingency(
-                        retry_policy_provider=retry_policy_provider
-                    )
+                    contingency=Contingency
                 )
             )
             result, attempts = publisher.publish(Message='Some message...')
@@ -66,9 +63,7 @@ class PublisherTest(TestCase):
             publisher = Publisher(
                 coordinator=Coordinator(
                     commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    contingency=Contingency(
-                        retry_policy_provider=retry_policy_provider
-                    )
+                    contingency=Contingency
                 )
             )
             result, attempts = publisher.publish(Message='Some message...')
@@ -101,12 +96,7 @@ class PublisherTest(TestCase):
             publisher = Publisher(
                 coordinator=Coordinator(
                     commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    contingency=Contingency(
-                        retry_policy_provider=lambda action: retry_policy_provider(
-                            action,
-                            reaction=callback,  # called if the RetryPolicy expires
-                        )
-                    )
+                    contingency=Contingency(reaction=callback)
                 )
             )
             result, attempts = publisher.publish(Message='Some message...')
@@ -132,12 +122,7 @@ class PublisherTest(TestCase):
                 publisher = Publisher(
                     coordinator=Coordinator(
                         commlink=Commlink(Config(self.broker, **fake_credentials)),
-                        contingency=Contingency(
-                            retry_policy_provider=lambda action: retry_policy_provider(
-                                action=action,
-                                reaction=write_to_deadletter_file
-                            ),
-                        )
+                        contingency=Contingency(reaction=write_to_deadletter_file)
                     )
                 )
                 result, attempts = publisher.publish(Message='Some message...')
