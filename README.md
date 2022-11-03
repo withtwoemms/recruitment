@@ -69,12 +69,8 @@ A `Result` type is returned for convenience (see [here](https://github.com/witht
 Build scripting is managed via [`noxfile`](https://nox.thea.codes/en/stable/config.html).
 Execute `nox -l` to see the available commands (set the `USEVENV` environment variable to view virtualenv-oriented commands).
 To get started, simply run `nox`.
-Doing so will install `actionpack` on your PYTHONPATH.
-Using the `USEVENV` environment variable, a virtualenv can be created in the local ".nox/" directory with something like:
-
-```
-USEVENV=virtualenv nox -s actionpack-venv-install-3.10
-```
+Doing so will install `recruitment` on your PYTHONPATH.
+Using the `USEVENV` environment variable, a virtualenv can be created in the local ".nox/" directory with something like: `USEVENV=virtualenv nox -s recruitment-venv-install-3.10`.
 
 All tests can be run with `nox -s test` and a single test can be run with something like the following:
 
