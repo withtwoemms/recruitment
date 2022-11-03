@@ -129,7 +129,7 @@ class Contingency:
         param_names, assigned_param_names = ['reaction', 'max_retries'], []
         for param_name in param_names:
             param_value = kwargs.get(param_name)
-            if param_value:
+            if param_value or param_value == 0:
                 assigned_param_names.append(param_name)
                 setattr(instance, param_name, param_value)
 
