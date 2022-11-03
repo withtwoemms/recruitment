@@ -7,11 +7,11 @@
 # Overview
 
 This code provides abstractions (mostly housed [here](https://github.com/withtwoemms/recruitment/blob/main/recruitment/agency/__init__.py) at time of writing this) that support unified and robust interaction with cloud services.
-The `Broker` concept allows for the recasting of methods provided by cloud integration SDKs (e.g. [boto](http://boto.cloudhackers.com/en/latest/)) into an interface of your choosing. The `Communicator` SDK houses method bindings defined by the `Broker.interface` while the `Consumer`, `Publisher`, and `Agent` entities implement the bound interface with [actionpack](https://github.com/withtwoemms/actionpack)ed resilience 💥
+The `Broker` concept allows for the recasting of methods provided by cloud integration SDKs (e.g. [boto](http://boto.cloudhackers.com/en/latest/)) into an interface of your choosing. The `Commlink` concept houses method bindings defined by the `Broker.interface` while the `Consumer`, `Publisher`, and `Agent` entities implement the bound interface with [actionpack](https://github.com/withtwoemms/actionpack)ed resilience 💥
 
 ### Some Terms
 
-When dealing with AWS data storage services, data is either published or consumed.
+When dealing with AWS data storage services, data is either _published_ or _consumed_.
 This library presents a flexible API for doing just that.
 The primary entities are a type of `Job` as follows:
 
@@ -19,18 +19,18 @@ The primary entities are a type of `Job` as follows:
 * `Publisher`
 
 A `Job` leverages a `Coordinator` to do work.
-A `Coordinator` is constructed using a `Commlink` for making external calls and an optional `Contingency` for responding to failures when making external calls.
+A `Coordinator` is constructed using a `Commlink` for making external calls and an optional `Contingency` for responding to failures when making those external calls.
 Each `Commlink` hosts the communication interface provided by a `Config`.
 Instatiating a `Config` with a given service name binds a different interface.
 The following diagram the relationship between the types:
 
-![recruitment-diagram-1](https://user-images.githubusercontent.com/7152453/199724835-9bf8a86b-0f55-48ce-9b7e-48e4bdb37224.png)
+![recruitment-diagram-1](https://user-images.githubusercontent.com/7152453/199785691-0880622f-9f92-4e90-8da1-3d204aaf11dc.png)
 
 This one zooms-in on the `Broker`:
 
-![recruitment-diagram-2](https://user-images.githubusercontent.com/7152453/199724871-78f8b7f6-9251-4adb-9d6e-a9509f3575d2.png)
+![recruitment-diagram-2](https://user-images.githubusercontent.com/7152453/199785718-5b74626b-b47f-45e6-bc1c-d9f6f365ffda.png)
 
-There also exists an `Agent` type (not pictured) capable of both consuming _and_ publishing by requiring injection of the aforementioned `Job` types upon construction.
+There also exists an `Agent` type (not pictured) capable of both consuming _and_ publishing by requiring injection of both aforementioned `Job` types upon construction.
 
 # Usage
 
@@ -40,10 +40,10 @@ Say you'd like to pull files from s3; just follow these steps:
 ```python
 config = Config(
     service_name='s3',  # can also pass Broker.s3
-    region_name=,
-    access_key_id=,
-    secret_access_key=,
-    endpoint_url=,
+    region_name='somewhere-in-the-world',
+    access_key_id='s3curityBadge!',
+    secret_access_key='p@ssw0rd!',
+    endpoint_url='some-computer.com',
 )
 ```
 * Build the `Job`
