@@ -31,6 +31,18 @@ This one zooms-in on the `Broker`:
 ![recruitment-diagram-2](https://user-images.githubusercontent.com/7152453/199785718-5b74626b-b47f-45e6-bc1c-d9f6f365ffda.png)
 
 There also exists an `Agent` type (not pictured) capable of both consuming _and_ publishing by requiring injection of both aforementioned `Job` types upon construction.
+Work done (say `.consume` or `.publish`), is encapsulated as an `Effort` type.
+The culmination of that work can be found under the eponymous attribute of an `Effort` instance.
+
+| `Effort` | Description |
+| --- | ----------- |
+| `.culmination` | outcome from retrying |
+| `.initial_attempt` | first attmept |
+| `.final_attempt` | last attempt |
+| `.attempts` | all attempts |
+| `.retries` | attempts - initial_attempt |
+
+Attempts are returned as `Result` types for convenience (see [here](https://github.com/withtwoemms/actionpack#what-are-actions-for) for more info).
 
 # Usage
 
@@ -60,7 +72,23 @@ Simple as that.
 Give it a try.
 Being that a `Consumer` was built, above, the `.consume` method is available.
 Similar can by done with a `Publisher`.
-A `Result` type is returned for convenience (see [here](https://github.com/withtwoemms/actionpack#what-are-actions-for) for more info).
+
+### Contingencies
+
+Things can go wrong and when they do, it may be helpful to try again.
+Passing a `Contingency` to a `Coordinator` is how you do that.
+The class, alone, can be passed for some default behavior or it can be instantiated with the params `max_retries` and/or `reaction`.
+The `max_retries` param is self-expanatory as it governs the maximum number of retries that will be attempted.
+```python
+from actionpack.actions import Call
+from actionpack.utils import Closure
+
+callback = Call(Closure(print, 'did a thing!')
+Contingency(max_retries=3, reaction=callback)
+```
+The `reaction` param is a bit more nuanced.
+If an `Action` is passed, it's guaranteed to be performed after the original job is completed.
+This feature is great for logging or notifying other processes of the what has occurred.
 
 # Development
 
