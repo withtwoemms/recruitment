@@ -1,7 +1,6 @@
 import boto3
 
 from actionpack import Action
-from actionpack.action import Result
 from actionpack.actions import Call
 from actionpack.utils import Closure
 from botocore.exceptions import NoRegionError
@@ -16,6 +15,7 @@ from typing import Union
 
 from recruitment.agency.resources import Broker
 from recruitment.agency.resources import CloudProvider
+from recruitment.agency.resources import Effort
 from recruitment.agency.resources import From
 from recruitment.agency.resources import RecordedRetryPolicy
 
@@ -159,12 +159,12 @@ class Coordinator:
         self.commlink = commlink
         self.contingency = contingency
 
-    def do(self, action: Action) -> Result[T]:
+    def do(self, action: Action) -> Effort:
         if self.contingency:
             retry_policy = self.contingency(action=action)
-            return retry_policy.perform(), retry_policy.attempts
+            return Effort(retry_policy.perform(), *retry_policy.attempts)
         else:
-            return action.perform()
+            return Effort(action.perform())
 
 
 class Job:
@@ -187,7 +187,7 @@ class Job:
 class Publisher(Job):
     """A namespace for publishing messages"""
 
-    def publish(self, *args, **kwargs):
+    def publish(self, *args, **kwargs) -> Effort:
         send_communique = Call(Closure(self.coordinator.commlink.send, *args, **kwargs))
         return self.coordinator.do(send_communique)
 
@@ -195,7 +195,7 @@ class Publisher(Job):
 class Consumer(Job):
     """A namespace for consuming messages"""
 
-    def consume(self, *args, **kwargs):
+    def consume(self, *args, **kwargs) -> Effort:
         receive_communique = Call(Closure(self.coordinator.commlink.receive, *args, **kwargs))
         return self.coordinator.do(receive_communique)
 
