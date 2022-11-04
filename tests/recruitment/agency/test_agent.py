@@ -73,14 +73,14 @@ class AgentTest(TestCase):
                 consumer=self.consumer_provider(commlink=self.commlink_provider(Broker.logs)),
                 publisher=self.publisher_provider(commlink=self.commlink_provider(Broker.sns))
             )
-            consume_result = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
-            publish_result = smith.publish(Message='Mr. Anderson...')
+            consume_effort = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
+            publish_effort = smith.publish(Message='Mr. Anderson...')
 
-        self.assertFalse(consume_result.successful)
-        self.assertIsInstance(consume_result.value, ClientError)
+        self.assertFalse(consume_effort.culmination.successful)
+        self.assertIsInstance(consume_effort.culmination.value, ClientError)
 
-        self.assertFalse(publish_result.successful)
-        self.assertIsInstance(publish_result.value, ClientError)
+        self.assertFalse(publish_effort.culmination.successful)
+        self.assertIsInstance(publish_effort.culmination.value, ClientError)
 
     @patch('boto3.client')
     def test_cannot_instantiate_agent_given_invalid_suboordinates(self, mock_boto_client):
@@ -95,6 +95,8 @@ class AgentTest(TestCase):
     @patch('actionpack.actions.Write.perform')
     def test_can_retry_message_send(self, mock_write, mock_boto_client):
         mock_boto_client.side_effect = self.client_selector
+        consumer_max_retries = 2
+        publish_max_retries = 2
         with Stubber(self.logs) as logs_stubber, \
              Stubber(self.sns) as sns_stubber:
             sns_stubber.add_client_error(Broker.sns.interface['send'], '500')  # attempt
@@ -113,25 +115,26 @@ class AgentTest(TestCase):
                     contingency=Contingency
                 )
             )
-            publish_result, publish_attempts = smith.publish(Message='Mr. Anderson...')
-            consume_result, consume_attempts = smith.consume(logGroupName='the construct', logStreamName='the-training-program')
+            publish_effort = smith.publish(Message='Mr. Anderson...')
+            consume_effort = smith.consume(logGroupName='the construct', logStreamName='the-training-program')
 
-        self.assertFalse(publish_result.successful)
-        self.assertIsInstance(publish_result.value, RetryPolicy.Expired)
-        self.assertEqual(len(publish_attempts), 3)
-        for attempt in publish_attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(publish_effort.culmination.successful)
+        self.assertIsInstance(publish_effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(publish_effort.retries), publish_max_retries)
+        for retry in publish_effort.retries:
+            self.assertIsInstance(retry.value, ClientError)
 
-        self.assertFalse(consume_result.successful)
-        self.assertIsInstance(consume_result.value, RetryPolicy.Expired)
-        self.assertEqual(len(consume_attempts), 3)
-        for attempt in consume_attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(consume_effort.culmination.successful)
+        self.assertIsInstance(consume_effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(consume_effort.retries), consumer_max_retries)
+        for retry in consume_effort.retries:
+            self.assertIsInstance(retry.value, ClientError)
 
     @patch('boto3.client')
     @patch('actionpack.actions.Write.perform')
     def test_publish_can_eventually_succeed(self, mock_write, mock_boto_client):
         mock_boto_client.side_effect = self.client_selector
+        publish_max_retries = 2
         consumer_max_retries = 1
         with Stubber(self.logs) as logs_stubber, \
              Stubber(self.sns) as sns_stubber:
@@ -150,22 +153,22 @@ class AgentTest(TestCase):
                     contingency=Contingency
                 )
             )
-            publish_result, publish_attempts = smith.publish(Message='Mr. Anderson...')
-            consume_result, consume_attempts = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
+            publish_effort = smith.publish(Message='Mr. Anderson...')
+            consume_effort = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
 
-        self.assertTrue(publish_result.successful)
-        self.assertEqual(publish_result.value, self.expected_publish_response)
-        self.assertEqual(len(publish_attempts), 3)
-        self.assertIsInstance(publish_attempts.pop().value, type(self.expected_publish_response))
-        for attempt in publish_attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertTrue(publish_effort.culmination.successful)
+        self.assertEqual(publish_effort.culmination.value, self.expected_publish_response)
+        self.assertEqual(len(publish_effort.retries), publish_max_retries)
+        self.assertIsInstance(publish_effort.final_attempt.value, type(self.expected_publish_response))
+        for retry in publish_effort.retries[:-1]:
+            self.assertIsInstance(retry.value, ClientError)
 
-        self.assertTrue(consume_result.successful)
-        self.assertEqual(consume_result.value, self.expected_consume_response)
-        self.assertEqual(len(consume_attempts), consumer_max_retries + 1)
-        self.assertIsInstance(consume_attempts.pop().value, type(self.expected_consume_response))
-        for attempt in consume_attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertTrue(consume_effort.culmination.successful)
+        self.assertEqual(consume_effort.culmination.value, self.expected_consume_response)
+        self.assertEqual(len(consume_effort.retries), consumer_max_retries)
+        self.assertIsInstance(consume_effort.final_attempt.value, type(self.expected_consume_response))
+        for retry in consume_effort.retries[:-1]:
+            self.assertIsInstance(retry.value, ClientError)
 
     @patch('boto3.client')
     @patch('actionpack.actions.Write.perform')
@@ -199,20 +202,20 @@ class AgentTest(TestCase):
                     contingency=Contingency
                 )
             )
-            publish_result, publish_attempts = smith.publish(Message='Mr. Anderson...')
-            consume_result, consume_attempts = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
+            publish_effort = smith.publish(Message='Mr. Anderson...')
+            consume_effort = smith.consume(logGroupName='the-construct', logStreamName='the-training-program')
 
-        self.assertFalse(publish_result.successful)
-        self.assertIsInstance(publish_result.value, RetryPolicy.Expired)
-        self.assertEqual(len(publish_attempts), publisher_max_retries + 1)
-        for attempt in publish_attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(publish_effort.culmination.successful)
+        self.assertIsInstance(publish_effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(publish_effort.retries), publisher_max_retries)
+        for retry in publish_effort.retries:
+            self.assertIsInstance(retry.value, ClientError)
 
-        self.assertFalse(consume_result.successful)
-        self.assertIsInstance(consume_result.value, RetryPolicy.Expired)
-        self.assertEqual(len(consume_attempts), consumer_max_retries + 1)
-        for attempt in consume_attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(consume_effort.culmination.successful)
+        self.assertIsInstance(consume_effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(consume_effort.retries), consumer_max_retries)
+        for retry in consume_effort.retries:
+            self.assertIsInstance(retry.value, ClientError)
 
         self.assertEqual(vessel, [contents])  # evidence the fill callback was called
 
@@ -220,6 +223,7 @@ class AgentTest(TestCase):
     @patch('pathlib.Path.open')
     def test_can_write_deadletter(self, mock_file, mock_boto_client):
         mock_boto_client.side_effect = self.client_selector
+        max_retries = 2
         with uncloseable(StringIO()) as buffer:
             mock_file.return_value = buffer
 
@@ -234,14 +238,14 @@ class AgentTest(TestCase):
                         contingency=Contingency(reaction=write_to_deadletter_file)
                     )
                 )
-                result, attempts = smith.publish(Message='Mr. Anderson...')
+                effort = smith.publish(Message='Mr. Anderson...')
 
         buffer_contents: str = buffer.read()
         self.assertTrue(buffer_contents.startswith('->'))
         self.assertTrue(buffer_contents.endswith('failed\n'))
 
-        self.assertFalse(result.successful)
-        self.assertIsInstance(result.value, RetryPolicy.Expired)
-        self.assertEqual(len(attempts), 3)
-        for attempt in attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(effort.culmination.successful)
+        self.assertIsInstance(effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(effort.retries), max_retries)
+        for retry in effort.retries:
+            self.assertIsInstance(retry.value, ClientError)

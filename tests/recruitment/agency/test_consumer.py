@@ -42,6 +42,7 @@ class ConsumerTest(TestCase):
     @patch('actionpack.actions.Write.perform')
     def test_can_retry_message_send(self, mock_write, mock_boto_client):
         mock_boto_client.return_value = self.botoclient
+        max_retries = 2
         with Stubber(self.botoclient) as stubber:
             stubber.add_client_error(self.broker.interface['receive'], '500')  # attempt
             stubber.add_client_error(self.broker.interface['receive'], '500')  # retry 1
@@ -52,18 +53,20 @@ class ConsumerTest(TestCase):
                     contingency=Contingency
                 )
             )
-            result, attempts = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
+            effort = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
 
-        self.assertFalse(result.successful)
-        self.assertIsInstance(result.value, RetryPolicy.Expired)
-        self.assertEqual(len(attempts), 3)
-        for attempt in attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(effort.culmination.successful)
+        self.assertIsInstance(effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(effort.retries), max_retries)
+        self.assertIsInstance(effort.initial_attempt.value, ClientError)
+        for retry in effort.retries:
+            self.assertIsInstance(retry.value, ClientError)
 
     @patch('boto3.client')
     @patch('actionpack.actions.Write.perform')
     def test_consume_can_eventually_succeed(self, mock_write, mock_boto_client):
         mock_boto_client.return_value = self.botoclient
+        max_retries = 2
         with Stubber(self.botoclient) as stubber:
             stubber.add_client_error(self.broker.interface['receive'], '500')  # attempt
             stubber.add_client_error(self.broker.interface['receive'], '500')  # retry 1
@@ -73,17 +76,18 @@ class ConsumerTest(TestCase):
             consumer = Consumer(
                 coordinator=Coordinator(
                     commlink=Commlink(Config(self.broker, **fake_credentials)),
-                    contingency=Contingency
+                    contingency=Contingency  # 2 max_retries by default
                 )
             )
-            result, attempts = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
+            effort = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
 
-        self.assertTrue(result.successful)
-        self.assertEqual(result.value, self.expected_consume_response)
-        self.assertEqual(len(attempts), 3)
-        self.assertIsInstance(attempts.pop().value, type(self.expected_consume_response))
-        for attempt in attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertTrue(effort.culmination.successful)
+        self.assertEqual(effort.culmination.value, self.expected_consume_response)
+        self.assertEqual(len(effort.retries), max_retries)
+        self.assertIsInstance(effort.initial_attempt.value, ClientError)
+        self.assertIsInstance(effort.final_attempt.value, type(self.expected_consume_response))
+        for retry in effort.retries[:-1]:
+            self.assertIsInstance(retry.value, ClientError)
 
     @patch('boto3.client')
     @patch('actionpack.actions.Write.perform')
@@ -99,6 +103,7 @@ class ConsumerTest(TestCase):
 
         self.assertFalse(vessel)  # confirms the vessel has yet to be filled
         mock_boto_client.return_value = self.botoclient
+        max_retries = 2
         with Stubber(self.botoclient) as stubber:
             stubber.add_client_error(self.broker.interface['receive'], '500')
             stubber.add_client_error(self.broker.interface['receive'], '500')
@@ -111,19 +116,20 @@ class ConsumerTest(TestCase):
                     )
                 )
             )
-            result, attempts = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
+            effort = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
 
-        self.assertFalse(result.successful)
-        self.assertIsInstance(result.value, RetryPolicy.Expired)
-        self.assertEqual(len(attempts), 3)
-        for attempt in attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(effort.culmination.successful)
+        self.assertIsInstance(effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(effort.retries), max_retries)
+        for retry in effort.retries:
+            self.assertIsInstance(retry.value, ClientError)
         self.assertEqual(vessel, [contents])  # evidence the fill callback was called
 
     @patch('boto3.client')
     @patch('pathlib.Path.open')
     def test_can_write_deadletter(self, mock_file, mock_boto_client):
         mock_boto_client.return_value = self.botoclient
+        max_retries = 2
         with uncloseable(StringIO()) as buffer:
             mock_file.return_value = buffer
 
@@ -137,14 +143,14 @@ class ConsumerTest(TestCase):
                         contingency=Contingency(reaction=write_to_deadletter_file)
                     )
                 )
-                result, attempts = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
+                effort = consumer.consume(logGroupName='the construct', logStreamName='the-training-program')
 
         buffer_contents: str = buffer.read()
         self.assertTrue(buffer_contents.startswith('->'))
         self.assertTrue(buffer_contents.endswith('failed\n'))
 
-        self.assertFalse(result.successful)
-        self.assertIsInstance(result.value, RetryPolicy.Expired)
-        self.assertEqual(len(attempts), 3)
-        for attempt in attempts:
-            self.assertIsInstance(attempt.value, ClientError)
+        self.assertFalse(effort.culmination.successful)
+        self.assertIsInstance(effort.culmination.value, RetryPolicy.Expired)
+        self.assertEqual(len(effort.retries), max_retries)
+        for retry in effort.retries:
+            self.assertIsInstance(retry.value, ClientError)

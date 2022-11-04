@@ -44,7 +44,7 @@ class JobTest(TestCase):
                 self.broker.interface['create_target'], self.expected_create_target_response
             )
             job = Job(Coordinator(mock_commlink))
-            result = job.create_target(Bucket='test-bucket')
+            effort = job.create_target(Bucket='test-bucket')
 
-        self.assertTrue(result.successful)
-        self.assertDictEqual(result.value, self.expected_create_target_response)
+        self.assertTrue(effort.culmination.successful)
+        self.assertDictEqual(effort.culmination.value, self.expected_create_target_response)
