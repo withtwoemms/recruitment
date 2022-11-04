@@ -71,6 +71,13 @@ class Effort:
             self.initial_attempt, self.retries = culmination, []
         self.final_attempt = self.retries[-1] if any(self.retries) else self.initial_attempt
 
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        retries = ':retries' if self.retries else ''
+        status = 'succeeded' if self.culmination.successful else 'failed'
+
+        return f'<{name}:{status}{retries}>'
+
 
 #- Custom Actions ---------------------------->>>
 

@@ -142,16 +142,21 @@ class Contingency:
         self,
         action: Action,
     ) -> RecordedRetryPolicy:
-        if isinstance(self.reaction, Action):
-            retry_policy = RecordedRetryPolicy(
+        if isinstance(self, type):
+            return RecordedRetryPolicy(
                 action=action,
-                reaction=self.reaction if hasattr(self, 'reaction') else None,
-                max_retries=self.max_retries if hasattr(self, 'max_retries') else 2  # retries
+                max_retries=2  # retries
             )
-        else:
+
+        if hasattr(self, 'reaction') and not isinstance(self.reaction, Action):
             msg = f'reaction param must be of type `Action` not `{type(self.reaction).__name__}`.'
             raise TypeError(msg)
-        return retry_policy
+
+        return RecordedRetryPolicy(
+            action=action,
+            reaction=self.reaction if hasattr(self, 'reaction') else None,
+            max_retries=self.max_retries if hasattr(self, 'max_retries') else 2  # retries
+        )
 
 
 class Coordinator:
