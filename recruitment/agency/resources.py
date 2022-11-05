@@ -69,6 +69,7 @@ class Effort:
             self.initial_attempt, *self.retries = attempts
         else:
             self.initial_attempt, self.retries = culmination, []
+            self.attempts.append(self.initial_attempt)
         self.final_attempt = self.retries[-1] if any(self.retries) else self.initial_attempt
 
     def __repr__(self) -> str:
