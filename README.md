@@ -18,11 +18,17 @@ The primary entities are a type of `Job` as follows:
 * `Consumer`
 * `Publisher`
 
-A `Job` leverages a `Coordinator` to do work.
-A `Coordinator` is constructed using a `Commlink` for making external calls and an optional `Contingency` for responding to failures when making those external calls.
-Each `Commlink` hosts the communication interface provided by a `Config`.
-Instatiating a `Config` with a given service name binds a different interface.
-The following diagram the relationship between the types:
+This list outlines the main types used:
+
+| Type | Description |
+| --- | ----------- |
+| `Config` | selects an interface to bind; holds credentials |
+| `Commlink` | hosts the bound interface |
+| `Contingency` | description of how to handle failure |
+| `Coordinator` | namespace for describing how to do work |
+| `Job` | top-level scope for executing work |
+
+The following diagrams the relationship between the types:
 
 ![recruitment-diagram-1](https://user-images.githubusercontent.com/7152453/199785691-0880622f-9f92-4e90-8da1-3d204aaf11dc.png)
 
@@ -31,7 +37,7 @@ This one zooms-in on the `Broker`:
 ![recruitment-diagram-2](https://user-images.githubusercontent.com/7152453/199785718-5b74626b-b47f-45e6-bc1c-d9f6f365ffda.png)
 
 There also exists an `Agent` type (not pictured) capable of both consuming _and_ publishing by requiring injection of both aforementioned `Job` types upon construction.
-Work done (say `.consume` or `.publish`), is encapsulated as an `Effort` type.
+Work done (say by invoking `.consume` or `.publish`), is encapsulated as an `Effort` type.
 The culmination of that work can be found under the eponymous attribute of an `Effort` instance.
 
 | `Effort` | Description |
@@ -42,7 +48,7 @@ The culmination of that work can be found under the eponymous attribute of an `E
 | `.attempts` | all attempts |
 | `.retries` | attempts - initial_attempt |
 
-Attempts are returned as `Result` types for convenience (see [here](https://github.com/withtwoemms/actionpack#what-are-actions-for) for more info).
+Attempts are returned as `Result` types for convenience (see [here](https://github.com/withtwoemms/actionpack#what-are-actions-for) for more about that type).
 
 # Usage
 
@@ -77,7 +83,7 @@ Similar can by done with a `Publisher`.
 
 Things can go wrong and when they do, it may be helpful to try again.
 Passing a `Contingency` to a `Coordinator` is how you do that.
-The class, alone, can be passed for some default behavior or it can be instantiated with the params `max_retries` and/or `reaction`.
+The class, alone, can be passed for some default behavior or it can be instantiated with the params.
 The `max_retries` param is self-expanatory as it governs the maximum number of retries that will be attempted.
 ```python
 from actionpack.actions import Call
@@ -112,8 +118,8 @@ Coverage reports are optional and can be disabled using the `COVERAGE` environme
 
 ## Coming Soon...
 
-Sometimes you'd like to resume work or automate remediation.
-In such a case, you could serialize, then persist progress locally for some other process to work from later.
+Sometimes you'd like to resume work or even automate remediation.
+In such cases, you could serialize, then persist progress locally for some other process to work from later.
 This sort of design would facilitate the closed loop for ensuring whatever work tasked eventually gets done without error.
 
 ![Message Queue Resilience (Mark 1 1)](https://user-images.githubusercontent.com/7152453/157880655-fcbf0717-45c3-4783-a155-ff0c8a01891d.png)
