@@ -1,7 +1,6 @@
 from botocore.stub import Stubber
 from unittest import TestCase
 from unittest.mock import MagicMock
-from unittest.mock import patch
 
 from recruitment.agency import Job
 from recruitment.agency import Coordinator
@@ -33,9 +32,7 @@ class JobTest(TestCase):
         'Location': '/test-bucket'
     }
 
-    @patch('boto3.client')
-    def test_can_create_target(self, mock_boto_client):
-        mock_boto_client.return_value = self.boto_client
+    def test_can_create_target(self):
         mock_commlink = MagicMock()
         mock_commlink.create_target.__name__ = 'create_target'
         mock_commlink.create_target.return_value = self.expected_create_target_response
@@ -48,3 +45,4 @@ class JobTest(TestCase):
 
         self.assertTrue(effort.culmination.successful)
         self.assertDictEqual(effort.culmination.value, self.expected_create_target_response)
+        self.assertTrue(effort.attempts)
