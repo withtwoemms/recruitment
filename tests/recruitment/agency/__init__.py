@@ -1,4 +1,3 @@
-from actionpack.actions import RetryPolicy
 from actionpack.actions import Write
 from contextlib import contextmanager
 from datetime import datetime
@@ -20,6 +19,11 @@ fake_credentials = {
     'access_key_id': 's3curityBadge!',
     'secret_access_key': 'p@ssw0rd!',
     'endpoint_url': 'some-computer.com',
+}
+
+fake_credentials_with_session_token = {
+    **{'session_token': 'jamSesh3000!'},
+    **fake_credentials
 }
 
 write_to_deadletter_file = Write(
