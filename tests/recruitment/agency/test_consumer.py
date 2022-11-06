@@ -154,3 +154,14 @@ class ConsumerTest(TestCase):
         self.assertEqual(len(effort.retries), max_retries)
         for retry in effort.retries:
             self.assertIsInstance(retry.value, ClientError)
+
+    def test_Contingency_reaction_must_be_an_Action(self):
+        even_faker_credentials = {k: v for k, v in fake_credentials.items() if k != 'endpoint_url'}
+        consumer = Consumer(
+            coordinator=Coordinator(
+                commlink=Commlink(Config(self.broker, **even_faker_credentials)),
+                contingency=Contingency(reaction='NotAnActionObject')
+            )
+        )
+        with self.assertRaises(TypeError):  # reaction cannot be a str
+            consumer.consume(logGroupName='the construct', logStreamName='the-training-program')

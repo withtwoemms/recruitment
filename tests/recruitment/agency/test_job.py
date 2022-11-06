@@ -46,3 +46,4 @@ class JobTest(TestCase):
         self.assertTrue(effort.culmination.successful)
         self.assertDictEqual(effort.culmination.value, self.expected_create_target_response)
         self.assertTrue(effort.attempts)
+        self.assertEqual(repr(effort), '<Effort:succeeded>')
