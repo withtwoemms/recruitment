@@ -4,8 +4,6 @@ from actionpack import Action
 from actionpack.actions import Call
 from actionpack.utils import Closure
 from botocore.exceptions import NoRegionError
-from dataclasses import asdict
-from dataclasses import dataclass
 from functools import reduce
 from os import environ as envvars
 from pathlib import Path
@@ -25,39 +23,56 @@ Reaction = Action
 
 local_storage_dir = Path.home() / '.recruitment/agency/'
 deadletters = local_storage_dir / 'deadletters'  # failures
+session_token_param_name = 'session_token'
 
 
-@dataclass
 class Config:
     """An object for conveying configuration info"""
 
-    service_name: Union[str, Broker]
-    region_name: Optional[str] = None
-    access_key_id: Optional[str] = None
-    secret_access_key: Optional[str] = None
-    endpoint_url: Optional[str] = None
+    def __init__(
+        self,
+        service_name: Union[str, Broker],
+        region_name: Optional[str] = None,
+        access_key_id: Optional[str] = None,
+        secret_access_key: Optional[str] = None,
+        session_token: Optional[str] = None,
+        endpoint_url: Optional[str] = None
+    ):
+        self.service_name = service_name
+        self.region_name = region_name
+        self.access_key_id = access_key_id
+        self.secret_access_key = secret_access_key
+        self.endpoint_url = endpoint_url
+        if session_token or envvars.get('AWS_SESSION_TOKEN'):
+            self.session_token = session_token
+
+        self.__post_init__()
 
     @staticmethod
     def fromenv():
-        return Config(
-            service_name=envvars.get('AWS_SERVICE_NAME'),
-            region_name=envvars.get('AWS_REGION_NAME'),
-            access_key_id=envvars.get('AWS_ACCESS_KEY_ID'),
-            secret_access_key=envvars.get('AWS_SECRET_ACCESS_KEY'),
-            endpoint_url=envvars.get('AWS_ENDPOINT_URL')
-        )
+        kwargs = {
+            'service_name': envvars.get('AWS_SERVICE_NAME'),
+            'region_name': envvars.get('AWS_REGION_NAME'),
+            'access_key_id': envvars.get('AWS_ACCESS_KEY_ID'),
+            'secret_access_key': envvars.get('AWS_SECRET_ACCESS_KEY'),
+            session_token_param_name: envvars.get('AWS_SESSION_TOKEN'),
+            'endpoint_url': envvars.get('AWS_ENDPOINT_URL')
+        }
+        if session_token_param_name in kwargs and kwargs[session_token_param_name] is None:
+            del kwargs[session_token_param_name]
+        return Config(**kwargs)
 
     def supplement(self, fromhere: str):
         fromwhere = From(fromhere)
         unset = {}
         if fromwhere == From.env:
-            for k, v in asdict(self).items():
+            for k, v in dict(self).items():
                 if v is None:
                     unset[k] = envvars.get(f'{CloudProvider.AWS.value}_{k.upper()}')
         if fromwhere == From.file:
             raise NotImplementedError('Coming soon.')
 
-        return Config(**{**asdict(self), **unset})
+        return Config(**{**dict(self), **unset})
 
     def asfile(self, profile: str = 'default'):
         return f'[{profile}]\n{str(self)}'
@@ -76,6 +91,19 @@ class Config:
                 f'Service name must be a <Broker> or <str>. Received <{service_name_type}>.'
             )
 
+    def __iter__(self):
+        for attr, value in vars(self).items():
+            yield attr, value
+
+    def __repr__(self):
+        delimiter = ', '
+        attrs = reduce(
+            lambda a, b: f'{a}' + f'{b[0]}={b[1] if b[1] != None else "None"}{delimiter}',
+            dict(self).items(),
+            '',
+        ).strip(delimiter)
+        return f'{self.__class__.__name__}({attrs})'
+
     def __str__(self):
         """Produces a string compatible with the AWS CLI tool
         (see documentation for details:
@@ -83,7 +111,7 @@ class Config:
         """
         return reduce(
             lambda a, b: f'{a}' + f'{b[0]}={b[1] if b[1] else ""}\n',
-            asdict(self).items(),
+            dict(self).items(),
             '',
         ).strip()
 
@@ -96,15 +124,17 @@ class Commlink:
 
     def __init__(self, config: Config):
         self.broker = Broker(config.service_name)  # maybe redundant
+        kwargs = {
+            'service_name': config.service_name,
+            'region_name': config.region_name,
+            'aws_access_key_id': config.access_key_id,
+            'aws_secret_access_key': config.secret_access_key,
+            'aws_session_token': config.session_token if hasattr(config, session_token_param_name) else None,
+            'endpoint_url': config.endpoint_url
+        }
         for alias, method in self.broker.interface.items():
             try:
-                client = boto3.client(
-                    service_name=config.service_name,
-                    region_name=config.region_name,
-                    aws_access_key_id=config.access_key_id,
-                    aws_secret_access_key=config.secret_access_key,
-                    endpoint_url=config.endpoint_url
-                )
+                client = boto3.client(**kwargs)
             except (ValueError, NoRegionError) as e:
                 raise Commlink.FailedToInstantiate(given=config) from e
             setattr(self, alias, getattr(client, method))
